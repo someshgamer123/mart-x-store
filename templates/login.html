@@ -3,102 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login | {{ site_name }}</title>
+    <title>{{ site_name }} | Security Gateway</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
-            background: radial-gradient(circle at top, #111827, #030712);
-            color: #f3f4f6;
+            background: #050811;
+            color: #f1f5f9;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
             user-select: none;
+            overflow: hidden;
         }
-        .login-card {
-            background: rgba(17, 24, 39, 0.9);
-            backdrop-filter: blur(16px);
+        .bg-glow {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(0,0,0,0) 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+        .gateway-card {
+            position: relative;
+            z-index: 10;
+            background: rgba(13, 18, 32, 0.85);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
-            padding: 40px;
+            backdrop-filter: blur(24px);
+            border-radius: 24px;
+            padding: 44px 38px;
             width: 100%;
-            max-width: 420px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7);
+            max-width: 430px;
+            box-shadow: 0 30px 60px -15px rgba(0,0,0,0.8);
         }
-        .brand-title {
-            font-size: 24px;
-            font-weight: 800;
-            text-align: center;
-            background: linear-gradient(135deg, #60a5fa, #3b82f6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 6px;
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 24px;
         }
-        .login-card p { font-size: 13px; color: #9ca3af; text-align: center; margin-bottom: 28px; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px; color: #d1d5db; }
-        input {
+        .brand-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+        }
+        .brand-icon svg { width: 22px; height: 22px; fill: #fff; }
+        .brand-name { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #fff; }
+        .brand-name span { color: #38bdf8; }
+
+        .step-header { text-align: center; margin-bottom: 28px; }
+        .step-header h2 { font-size: 19px; font-weight: 700; color: #f8fafc; margin-bottom: 6px; }
+        .step-header p { font-size: 13px; color: #94a3b8; line-height: 1.5; }
+
+        .input-group { margin-bottom: 18px; text-align: left; }
+        label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; color: #94a3b8; }
+        .input-field {
             width: 100%;
-            padding: 12px 14px;
-            background: #1f2937;
-            border: 1px solid #374151;
-            border-radius: 8px;
+            padding: 14px 16px;
+            background: #090e1a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
             color: #fff;
             font-size: 14px;
             outline: none;
             transition: all 0.2s;
         }
-        input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); }
-        button {
+        .input-field:focus { border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2); }
+        .secret-input { font-size: 20px; letter-spacing: 6px; text-align: center; font-weight: 700; }
+
+        .btn-primary {
             width: 100%;
             padding: 14px;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            background: linear-gradient(135deg, #0284c7, #2563eb);
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             color: #fff;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 14px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: 0.2s;
+            margin-top: 8px;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
         }
-        button:hover { opacity: 0.95; transform: translateY(-1px); }
-        .alert {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid #ef4444;
-            color: #fca5a5;
-            padding: 10px;
-            border-radius: 8px;
+        .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
+
+        .save-device-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 16px 0 8px 0;
+            cursor: pointer;
             font-size: 13px;
-            margin-bottom: 18px;
-            text-align: center;
+            color: #cbd5e1;
         }
+        .save-device-wrapper input[type="checkbox"] {
+            width: 17px;
+            height: 17px;
+            accent-color: #0284c7;
+            cursor: pointer;
+        }
+
+        /* Toast Container */
+        #toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            display: none;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+            z-index: 100;
+            animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
-    <div class="login-card">
-        <div class="brand-title">{{ site_name }}</div>
-        <p>Administrative Control Gateway</p>
+    <div class="bg-glow"></div>
+    <div id="toast"></div>
 
-        {% if error %}
-        <div class="alert">{{ error }}</div>
-        {% endif %}
+    <div class="gateway-card">
+        <div class="brand-logo">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+            </div>
+            <div class="brand-name">{{ site_name }}</div>
+        </div>
 
-        <form method="POST" action="/admin/login">
-            <div class="form-group">
-                <label>Username</label>
-                <input type="text" name="username" required autocomplete="off" placeholder="admin">
+        <!-- Step 1: Secret Key Verification -->
+        <div id="stepSecret">
+            <div class="step-header">
+                <h2>Security Verification</h2>
+                <p>Enter your authorization Master Secret Code to access the terminal.</p>
             </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" required placeholder="••••••••••••">
+            <div class="input-group">
+                <label>Master Secret Code</label>
+                <input type="password" id="secretCodeInput" class="input-field secret-input" maxlength="16" placeholder="••••••" autocomplete="off">
             </div>
-            <button type="submit">Sign In to Dashboard</button>
-        </form>
+            <button class="btn-primary" onclick="handleSecretVerify()">Verify Master Key</button>
+        </div>
+
+        <!-- Step 2: Username & Password (Only if not auto-logged in) -->
+        <div id="stepCreds" style="display: none;">
+            <div class="step-header">
+                <h2>Admin Credentials</h2>
+                <p>Secret verified. Enter your administrator username and password.</p>
+            </div>
+            
+            <!-- Hidden inputs to stop browser autofill -->
+            <input type="text" style="display:none">
+            <input type="password" style="display:none">
+
+            <div class="input-group">
+                <label>Admin Username</label>
+                <input type="text" id="usernameInput" class="input-field" placeholder="Type username..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            </div>
+            <div class="input-group">
+                <label>Admin Password</label>
+                <input type="password" id="passwordInput" class="input-field" placeholder="Type password..." autocomplete="new-password">
+            </div>
+
+            <label class="save-device-wrapper">
+                <input type="checkbox" id="saveLoginCheckbox">
+                <span>Save Login (Auto-login next time with Secret Key only)</span>
+            </label>
+
+            <button class="btn-primary" onclick="handleLoginSubmit()">Authenticate & Enter</button>
+        </div>
     </div>
 
     <script>
-        // Anti-Inspect / Disable F12 & Shortcuts
+        // Anti-Inspect / F12 Protection
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.onkeydown = function(e) {
             if (e.keyCode === 123 || 
@@ -107,6 +198,89 @@
                 return false;
             }
         };
+
+        function showToast(msg, type = 'info') {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.display = 'block';
+            t.style.borderColor = type === 'error' ? '#ef4444' : '#38bdf8';
+            t.style.color = type === 'error' ? '#fca5a5' : '#e0f2fe';
+            setTimeout(() => { t.style.display = 'none'; }, 3500);
+        }
+
+        let verifiedSecret = '';
+
+        function handleSecretVerify() {
+            const code = document.getElementById('secretCodeInput').value.trim();
+            if (!code) {
+                showToast('Please enter the Master Secret Code.', 'error');
+                return;
+            }
+
+            const deviceToken = localStorage.getItem('martx_device_token') || '';
+
+            fetch('/api/verify-secret', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ secret_code: code, device_token: deviceToken })
+            })
+            .then(async r => {
+                const res = await r.json();
+                if (!r.ok) throw new Error(res.message || 'Verification failed');
+                return res;
+            })
+            .then(res => {
+                if (res.auto_login) {
+                    showToast('Device verified! Access granted.', 'success');
+                    setTimeout(() => { window.location.href = '/admin'; }, 800);
+                } else {
+                    verifiedSecret = code;
+                    document.getElementById('stepSecret').style.display = 'none';
+                    document.getElementById('stepCreds').style.display = 'block';
+                    showToast('Secret key accepted.', 'success');
+                }
+            })
+            .catch(err => {
+                showToast(err.message, 'error');
+            });
+        }
+
+        function handleLoginSubmit() {
+            const u = document.getElementById('usernameInput').value.trim();
+            const p = document.getElementById('passwordInput').value.trim();
+            const saveDevice = document.getElementById('saveLoginCheckbox').checked;
+
+            if (!u || !p) {
+                showToast('Please fill both username and password.', 'error');
+                return;
+            }
+
+            fetch('/api/login-credentials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    secret_code: verifiedSecret,
+                    username: u,
+                    password: p,
+                    save_login: saveDevice
+                })
+            })
+            .then(async r => {
+                const res = await r.json();
+                if (!r.ok) throw new Error(res.message || 'Login failed');
+                return res;
+            })
+            .then(res => {
+                if (res.device_token) {
+                    localStorage.setItem('martx_device_token', res.device_token);
+                }
+                showToast('Authenticated! Loading dashboard...', 'success');
+                setTimeout(() => { window.location.href = '/admin'; }, 800);
+            })
+            .catch(err => {
+                showToast(err.message, 'error');
+            });
+        }
     </script>
 </body>
 </html>
