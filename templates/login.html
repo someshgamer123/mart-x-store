@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ site_name }} | Security Gateway</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
         body {
             background: #050811;
             color: #f1f5f9;
@@ -14,43 +14,29 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 16px;
             user-select: none;
-            overflow: hidden;
-        }
-        .bg-glow {
-            position: absolute;
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(0,0,0,0) 70%);
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 0;
-            pointer-events: none;
         }
         .gateway-card {
-            position: relative;
-            z-index: 10;
-            background: rgba(13, 18, 32, 0.85);
+            background: rgba(13, 18, 32, 0.9);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(24px);
+            backdrop-filter: blur(20px);
             border-radius: 24px;
-            padding: 44px 38px;
+            padding: 36px 24px;
             width: 100%;
-            max-width: 430px;
-            box-shadow: 0 30px 60px -15px rgba(0,0,0,0.8);
+            max-width: 420px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.85);
         }
         .brand-logo {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
         .brand-icon {
-            width: 44px;
-            height: 44px;
+            width: 42px;
+            height: 42px;
             background: linear-gradient(135deg, #0284c7, #2563eb);
             border-radius: 12px;
             display: flex;
@@ -59,15 +45,15 @@
             box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
         }
         .brand-icon svg { width: 22px; height: 22px; fill: #fff; }
-        .brand-name { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #fff; }
+        .brand-name { font-size: 20px; font-weight: 800; color: #fff; }
         .brand-name span { color: #38bdf8; }
 
-        .step-header { text-align: center; margin-bottom: 28px; }
-        .step-header h2 { font-size: 19px; font-weight: 700; color: #f8fafc; margin-bottom: 6px; }
+        .step-header { text-align: center; margin-bottom: 24px; }
+        .step-header h2 { font-size: 18px; font-weight: 700; color: #f8fafc; margin-bottom: 6px; }
         .step-header p { font-size: 13px; color: #94a3b8; line-height: 1.5; }
 
-        .input-group { margin-bottom: 18px; text-align: left; }
-        label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; color: #94a3b8; }
+        .input-group { margin-bottom: 16px; text-align: left; }
+        label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; color: #94a3b8; }
         .input-field {
             width: 100%;
             padding: 14px 16px;
@@ -75,67 +61,68 @@
             border: 1px solid #1e293b;
             border-radius: 12px;
             color: #fff;
-            font-size: 14px;
+            font-size: 15px;
             outline: none;
             transition: all 0.2s;
         }
         .input-field:focus { border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2); }
-        .secret-input { font-size: 20px; letter-spacing: 6px; text-align: center; font-weight: 700; }
+        .secret-input { font-size: 18px; letter-spacing: 4px; text-align: center; font-weight: 700; }
 
         .btn-primary {
             width: 100%;
-            padding: 14px;
+            padding: 15px;
             background: linear-gradient(135deg, #0284c7, #2563eb);
             border: none;
             border-radius: 12px;
             color: #fff;
             font-weight: 700;
-            font-size: 14px;
+            font-size: 15px;
             cursor: pointer;
             transition: 0.2s;
             margin-top: 8px;
             box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
         }
-        .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
+        .btn-primary:active { transform: scale(0.98); }
 
         .save-device-wrapper {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin: 16px 0 8px 0;
+            margin: 14px 0 8px 0;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12.5px;
             color: #cbd5e1;
+            line-height: 1.4;
         }
         .save-device-wrapper input[type="checkbox"] {
-            width: 17px;
-            height: 17px;
+            width: 18px;
+            height: 18px;
             accent-color: #0284c7;
-            cursor: pointer;
+            flex-shrink: 0;
         }
 
-        /* Toast Container */
         #toast {
             position: fixed;
-            top: 24px;
-            right: 24px;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            max-width: 380px;
+            margin: 0 auto;
             background: #0f172a;
             border: 1px solid #334155;
             color: #fff;
-            padding: 12px 20px;
+            padding: 12px 18px;
             border-radius: 12px;
             font-size: 13px;
             font-weight: 600;
             display: none;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
             z-index: 100;
-            animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
-    <div class="bg-glow"></div>
     <div id="toast"></div>
 
     <div class="gateway-card">
@@ -146,11 +133,11 @@
             <div class="brand-name">{{ site_name }}</div>
         </div>
 
-        <!-- Step 1: Secret Key Verification -->
+        <!-- Step 1: Secret Code -->
         <div id="stepSecret">
             <div class="step-header">
-                <h2>Security Verification</h2>
-                <p>Enter your authorization Master Secret Code to access the terminal.</p>
+                <h2>Master Access</h2>
+                <p>Enter your authorization Master Secret Code.</p>
             </div>
             <div class="input-group">
                 <label>Master Secret Code</label>
@@ -159,42 +146,36 @@
             <button class="btn-primary" onclick="handleSecretVerify()">Verify Master Key</button>
         </div>
 
-        <!-- Step 2: Username & Password (Only if not auto-logged in) -->
+        <!-- Step 2: Credentials -->
         <div id="stepCreds" style="display: none;">
             <div class="step-header">
-                <h2>Admin Credentials</h2>
-                <p>Secret verified. Enter your administrator username and password.</p>
+                <h2>Admin Verification</h2>
+                <p>Enter administrator username & password.</p>
             </div>
-            
-            <!-- Hidden inputs to stop browser autofill -->
-            <input type="text" style="display:none">
-            <input type="password" style="display:none">
 
             <div class="input-group">
-                <label>Admin Username</label>
-                <input type="text" id="usernameInput" class="input-field" placeholder="Type username..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                <label>Username</label>
+                <input type="text" id="usernameInput" class="input-field" placeholder="Admin username" autocomplete="off">
             </div>
             <div class="input-group">
-                <label>Admin Password</label>
-                <input type="password" id="passwordInput" class="input-field" placeholder="Type password..." autocomplete="new-password">
+                <label>Password</label>
+                <input type="password" id="passwordInput" class="input-field" placeholder="Admin password" autocomplete="new-password">
             </div>
 
             <label class="save-device-wrapper">
                 <input type="checkbox" id="saveLoginCheckbox">
-                <span>Save Login (Auto-login next time with Secret Key only)</span>
+                <span>Save Login (Auto-login next time with Secret Key)</span>
             </label>
 
-            <button class="btn-primary" onclick="handleLoginSubmit()">Authenticate & Enter</button>
+            <button class="btn-primary" onclick="handleLoginSubmit()">Sign In to Dashboard</button>
         </div>
     </div>
 
     <script>
-        // Anti-Inspect / F12 Protection
+        // Anti-Inspect
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.onkeydown = function(e) {
-            if (e.keyCode === 123 || 
-               (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) ||
-               (e.ctrlKey && e.keyCode === 85)) {
+            if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || (e.ctrlKey && e.keyCode === 85)) {
                 return false;
             }
         };
@@ -213,7 +194,7 @@
         function handleSecretVerify() {
             const code = document.getElementById('secretCodeInput').value.trim();
             if (!code) {
-                showToast('Please enter the Master Secret Code.', 'error');
+                showToast('Please enter Master Secret Code.', 'error');
                 return;
             }
 
@@ -251,7 +232,7 @@
             const saveDevice = document.getElementById('saveLoginCheckbox').checked;
 
             if (!u || !p) {
-                showToast('Please fill both username and password.', 'error');
+                showToast('Please fill username and password.', 'error');
                 return;
             }
 
@@ -274,7 +255,7 @@
                 if (res.device_token) {
                     localStorage.setItem('martx_device_token', res.device_token);
                 }
-                showToast('Authenticated! Loading dashboard...', 'success');
+                showToast('Login successful!', 'success');
                 setTimeout(() => { window.location.href = '/admin'; }, 800);
             })
             .catch(err => {
