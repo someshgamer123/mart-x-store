@@ -2,77 +2,100 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{{ site_name }} | Executive Console</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background: #060913; color: #e2e8f0; padding: 24px; user-select: none; }
-        .container { max-width: 1240px; margin: 0 auto; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: #060913; color: #e2e8f0; padding: 16px; user-select: none; }
+        .container { max-width: 1200px; margin: 0 auto; }
         
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid #1e293b; }
-        .brand { font-size: 22px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 10px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #1e293b; flex-wrap: wrap; gap: 12px; }
+        .brand { font-size: 20px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
         .brand span { color: #38bdf8; }
-        .admin-tag { font-size: 12px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); padding: 4px 10px; border-radius: 999px; font-weight: 600; }
+        .admin-tag { font-size: 11px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); padding: 3px 8px; border-radius: 999px; font-weight: 600; }
         
-        .header-actions { display: flex; gap: 10px; }
-        .btn { padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+        .header-actions { display: flex; gap: 8px; }
+        .btn { padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
         .btn-primary { background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; }
-        .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
         .btn-secondary { background: #111827; color: #cbd5e1; border: 1px solid #1e293b; }
-        .btn-secondary:hover { background: #1e293b; color: #fff; }
         .btn-danger { background: rgba(220, 38, 38, 0.15); color: #f87171; border: 1px solid rgba(220, 38, 38, 0.3); }
         .btn-danger:hover { background: #dc2626; color: #fff; }
         .btn-sm { padding: 7px 12px; font-size: 12px; border-radius: 8px; }
 
-        .card { background: #0b0f1d; border: 1px solid #1e293b; border-radius: 18px; padding: 24px; margin-bottom: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .tabs { display: flex; gap: 10px; margin-bottom: 18px; }
-        .tab-btn { background: none; border: 1px solid #1e293b; color: #94a3b8; padding: 9px 18px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s; }
+        .card { background: #0b0f1d; border: 1px solid #1e293b; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        .tab-btn { background: none; border: 1px solid #1e293b; color: #94a3b8; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12.5px; }
         .tab-btn.active { background: #0284c7; border-color: #0284c7; color: #fff; }
 
-        .upload-area { border: 2px dashed #1e293b; border-radius: 14px; padding: 40px 20px; text-align: center; cursor: pointer; transition: 0.2s; background: rgba(15, 23, 42, 0.3); }
-        .upload-area:hover { border-color: #38bdf8; background: rgba(56, 189, 248, 0.03); }
-        
-        .progress-container { display: none; margin-top: 20px; }
-        .progress-bar-bg { background: #1e293b; border-radius: 999px; height: 12px; overflow: hidden; }
-        .progress-bar-fill { background: linear-gradient(90deg, #0284c7, #38bdf8); height: 100%; width: 0%; transition: width 0.1s linear; }
-        .progress-text { display: flex; justify-content: space-between; font-size: 13px; color: #94a3b8; margin-top: 8px; }
-        .success-badge { display: none; color: #34d399; font-weight: 700; font-size: 14px; margin-top: 10px; text-align: center; }
+        .input-styled {
+            width: 100%;
+            padding: 13px 14px;
+            background: #060913;
+            border: 1px solid #1e293b;
+            border-radius: 10px;
+            color: #fff;
+            margin-bottom: 12px;
+            outline: none;
+            font-size: 13.5px;
+        }
+        .input-styled:focus { border-color: #38bdf8; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 14px; }
-        th, td { text-align: left; padding: 16px; border-bottom: 1px solid #1e293b; font-size: 13px; }
-        th { color: #94a3b8; font-weight: 600; background: #080c18; }
+        .upload-area { border: 2px dashed #1e293b; border-radius: 12px; padding: 30px 16px; text-align: center; cursor: pointer; background: rgba(15, 23, 42, 0.3); margin-bottom: 12px; }
+        .upload-area:hover { border-color: #38bdf8; }
+
+        .progress-container { display: none; margin: 16px 0; }
+        .progress-bar-bg { background: #1e293b; border-radius: 999px; height: 10px; overflow: hidden; }
+        .progress-bar-fill { background: linear-gradient(90deg, #0284c7, #38bdf8); height: 100%; width: 0%; transition: width 0.1s linear; }
+        .progress-text { display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; margin-top: 6px; }
+        .success-badge { display: none; color: #34d399; font-weight: 700; font-size: 13px; margin-top: 8px; text-align: center; }
+
+        /* Responsive Table & Card Views */
+        .desktop-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .desktop-table th, .desktop-table td { text-align: left; padding: 14px; border-bottom: 1px solid #1e293b; font-size: 13px; }
+        .desktop-table th { color: #94a3b8; font-weight: 600; background: #080c18; }
+
         .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
         .badge-file { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
         .badge-link { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-        
-        /* Single Active Link Container */
+
         .single-link-box {
             background: #060913;
             border: 1px solid #1e293b;
-            padding: 10px 14px;
-            border-radius: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             font-family: monospace;
             font-size: 12px;
-            gap: 12px;
+            gap: 10px;
         }
-        .link-info { color: #cbd5e1; }
         .link-pass { color: #38bdf8; font-weight: 700; }
-        .link-badge { font-size: 10px; color: #64748b; margin-left: 6px; }
 
-        /* Custom Modal */
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); align-items: center; justify-content: center; z-index: 60; }
-        .modal { background: #0c1222; border: 1px solid #1e293b; border-radius: 20px; padding: 30px; width: 100%; max-width: 440px; box-shadow: 0 25px 50px rgba(0,0,0,0.7); }
-        .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fff; }
-        .modal p { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
-        .modal input { width: 100%; padding: 12px 14px; background: #060913; border: 1px solid #1e293b; border-radius: 10px; color: #fff; margin-bottom: 14px; outline: none; font-size: 13px; }
-        .modal input:focus { border-color: #38bdf8; }
+        /* Mobile Card Style (Phones) */
+        .mobile-item-card { display: none; background: #060913; border: 1px solid #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+        .mobile-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .mobile-card-title { font-weight: 700; font-size: 15px; color: #fff; word-break: break-word; }
+        .mobile-link-info { background: #0b0f1d; border: 1px solid #1e293b; border-radius: 8px; padding: 10px; margin-bottom: 12px; font-family: monospace; font-size: 12px; }
+        .mobile-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .mobile-card-actions .btn { flex: 1; min-width: 100px; }
 
-        /* Toast */
-        #toast { position: fixed; top: 24px; right: 24px; background: #0f172a; border: 1px solid #38bdf8; color: #e0f2fe; padding: 12px 22px; border-radius: 12px; font-size: 13px; font-weight: 600; display: none; z-index: 100; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
+        @media (max-width: 768px) {
+            .desktop-table { display: none; }
+            .mobile-item-card { display: block; }
+            .header { flex-direction: column; align-items: flex-start; }
+            .header-actions { width: 100%; }
+            .header-actions .btn { flex: 1; }
+        }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); align-items: center; justify-content: center; z-index: 60; padding: 16px; }
+        .modal { background: #0c1222; border: 1px solid #1e293b; border-radius: 20px; padding: 24px; width: 100%; max-width: 440px; }
+        .modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; color: #fff; }
+        .modal p { font-size: 12.5px; color: #94a3b8; margin-bottom: 16px; }
+
+        #toast { position: fixed; top: 16px; left: 16px; right: 16px; max-width: 380px; margin: 0 auto; background: #0f172a; border: 1px solid #38bdf8; color: #e0f2fe; padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 600; display: none; z-index: 100; text-align: center; }
     </style>
 </head>
 <body>
@@ -82,127 +105,146 @@
         <div class="header">
             <div class="brand">
                 {{ site_name }} <span>Admin</span>
-                <span class="admin-tag">Logged: {{ current_username }}</span>
+                <span class="admin-tag">{{ current_username }}</span>
             </div>
             <div class="header-actions">
-                <button class="btn btn-secondary" onclick="openModal('settingsModal')">Admin Settings</button>
+                <button class="btn btn-secondary" onclick="openModal('settingsModal')">Settings</button>
                 <a href="/admin/logout" class="btn btn-danger">Log Out</a>
             </div>
         </div>
 
-        <!-- Upload Card -->
+        <!-- Upload Container -->
         <div class="card">
             <div class="tabs">
-                <button class="tab-btn active" id="tabFileBtn" onclick="switchTab('file')">Upload File / Video / Media (1 KB - 300 MB)</button>
-                <button class="tab-btn" id="tabLinkBtn" onclick="switchTab('link')">Create Protected URL Link</button>
+                <button class="tab-btn active" id="tabFileBtn" onclick="switchTab('file')">Upload File / App (Max 300 MB)</button>
+                <button class="tab-btn" id="tabLinkBtn" onclick="switchTab('link')">Protected URL Link</button>
             </div>
 
-            <!-- File Upload Tab -->
+            <!-- File Section -->
             <div id="fileUploadSection">
+                <input type="text" id="fileCustomName" class="input-styled" placeholder="App / File Display Name (e.g. GTA V Mobile, VIP Hack)">
+                
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(this)">
-                    <p id="fileLabel" style="font-size: 14px; color: #cbd5e1; font-weight: 500;">Click or drag to select file (Up to 300 MB)</p>
+                    <p id="fileLabel" style="font-size: 13.5px; color: #cbd5e1;">Tap to select file from phone / computer</p>
                 </div>
+
                 <div class="progress-container" id="progressContainer">
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill" id="progressBar"></div>
-                    </div>
-                    <div class="progress-text">
-                        <span id="percentText">0%</span>
-                        <span id="statusText">Uploading securely to {{ site_name }}...</span>
-                    </div>
-                    <div class="success-badge" id="successBadge">✓ Complete Successfully!</div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+                    <div class="progress-text"><span id="percentText">0%</span><span>Uploading...</span></div>
+                    <div class="success-badge" id="successBadge">✓ Upload Completed Successfully!</div>
                 </div>
-                <button class="btn btn-primary" id="uploadBtn" style="margin-top: 18px; width: 100%;" onclick="startFileUpload()">Upload & Generate Unique Link</button>
+
+                <button class="btn btn-primary" id="uploadBtn" style="width: 100%; padding: 14px;" onclick="startFileUpload()">Upload & Generate Link</button>
             </div>
 
-            <!-- External Link Tab -->
+            <!-- Link Section -->
             <div id="linkUploadSection" style="display: none;">
-                <input type="text" id="linkName" placeholder="Link Title (e.g. Premium Software Link)" style="width: 100%; padding: 14px; background: #060913; border: 1px solid #1e293b; border-radius: 10px; color: #fff; margin-bottom: 12px; outline: none;">
-                <input type="url" id="linkUrl" placeholder="https://destination-url.com" style="width: 100%; padding: 14px; background: #060913; border: 1px solid #1e293b; border-radius: 10px; color: #fff; margin-bottom: 16px; outline: none;">
-                <button class="btn btn-primary" style="width: 100%;" onclick="submitLink()">Save & Generate Link</button>
+                <input type="text" id="linkName" class="input-styled" placeholder="App / Resource Name (e.g. Premium Tool Access)">
+                <input type="url" id="linkUrl" class="input-styled" placeholder="https://target-url.com">
+                <button class="btn btn-primary" style="width: 100%; padding: 14px;" onclick="submitLink()">Save & Generate Link</button>
             </div>
         </div>
 
-        <!-- Resources Table -->
+        <!-- Items Display -->
         <div class="card">
-            <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Managed Inventory</h2>
-            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Only the latest generated link & password is shown below. Previous links continue to work 100%.</p>
-            <table>
+            <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Uploaded Assets</h2>
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Only latest link & password shown. All older links work 100%.</p>
+
+            <!-- Desktop View Table -->
+            <table class="desktop-table">
                 <thead>
                     <tr>
                         <th>Resource Name</th>
                         <th>Type</th>
                         <th>Active Link & Password</th>
-                        <th>Operations</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in items %}
                     <tr id="item-row-{{ item.id }}">
                         <td style="font-weight: 600; color: #fff;">{{ item.name }}</td>
-                        <td>
-                            <span class="badge {{ 'badge-file' if item.item_type == 'file' else 'badge-link' }}">
-                                {{ item.item_type|upper }}
-                            </span>
-                        </td>
-                        <td style="min-width: 440px;">
+                        <td><span class="badge {{ 'badge-file' if item.item_type == 'file' else 'badge-link' }}">{{ item.item_type|upper }}</span></td>
+                        <td style="min-width: 400px;">
                             <div class="single-link-box" id="link-box-{{ item.id }}">
-                                <div class="link-info">
-                                    <span id="code-txt-{{ item.id }}">/v/{{ item.latest_link_code }}</span> 
-                                    | Pass: <span class="link-pass" id="pass-txt-{{ item.id }}">{{ item.latest_password }}</span>
-                                    <span class="link-badge" id="badge-count-{{ item.id }}">(Total Active: {{ item.total_links }})</span>
+                                <div>
+                                    <span id="code-txt-{{ item.id }}">/v/{{ item.latest_link_code }}</span> | 
+                                    Pass: <span class="link-pass" id="pass-txt-{{ item.id }}">{{ item.latest_password }}</span>
                                 </div>
                                 <button class="btn btn-secondary btn-sm" onclick="copyCreds('{{ host_url }}v/{{ item.latest_link_code }}', '{{ item.latest_password }}')">Copy</button>
                             </div>
                         </td>
                         <td>
-                            <div style="display: flex; gap: 8px;">
-                                <button class="btn btn-secondary btn-sm" onclick="recreateLink('{{ item.id }}')">+ Recreate Link</button>
-                                <button class="btn btn-danger btn-sm" onclick="confirmDeleteItem('{{ item.id }}')">Delete File</button>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn btn-secondary btn-sm" onclick="recreateLink('{{ item.id }}')">+ Recreate</button>
+                                <button class="btn btn-danger btn-sm" onclick="confirmDeleteItem('{{ item.id }}')">Delete</button>
                             </div>
                         </td>
                     </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="4" style="text-align: center; color: #64748b; padding: 32px;">No assets uploaded yet.</td>
-                    </tr>
+                    <tr><td colspan="4" style="text-align: center; color: #64748b; padding: 24px;">No items uploaded.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
+
+            <!-- Mobile View Cards (Optimized for Phones) -->
+            <div class="mobile-items-list">
+                {% for item in items %}
+                <div class="mobile-item-card" id="mobile-card-{{ item.id }}">
+                    <div class="mobile-card-header">
+                        <div class="mobile-card-title">{{ item.name }}</div>
+                        <span class="badge {{ 'badge-file' if item.item_type == 'file' else 'badge-link' }}">{{ item.item_type|upper }}</span>
+                    </div>
+
+                    <div class="mobile-link-info">
+                        <div style="margin-bottom: 4px;">Link: <b id="m-code-txt-{{ item.id }}">/v/{{ item.latest_link_code }}</b></div>
+                        <div>Password: <b class="link-pass" id="m-pass-txt-{{ item.id }}">{{ item.latest_password }}</b></div>
+                    </div>
+
+                    <div class="mobile-card-actions">
+                        <button class="btn btn-secondary btn-sm" id="m-copy-btn-{{ item.id }}" onclick="copyCreds('{{ host_url }}v/{{ item.latest_link_code }}', '{{ item.latest_password }}')">Copy Link</button>
+                        <button class="btn btn-secondary btn-sm" onclick="recreateLink('{{ item.id }}')">+ Recreate</button>
+                        <button class="btn btn-danger btn-sm" onclick="confirmDeleteItem('{{ item.id }}')">Delete</button>
+                    </div>
+                </div>
+                {% else %}
+                <p style="text-align: center; color: #64748b; padding: 20px;" class="mobile-item-card">No assets uploaded yet.</p>
+                {% endfor %}
+            </div>
         </div>
     </div>
 
-    <!-- Admin Settings Modal (Change Username, Password, Secret Code) -->
+    <!-- Settings Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal">
-            <h3>Admin Security Settings</h3>
-            <p>Update your credentials. Leave fields blank if you don't wish to change them.</p>
+            <h3>Admin Settings</h3>
+            <p>Update credentials. Leave empty to keep unchanged.</p>
 
-            <label style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">New Admin Username</label>
-            <input type="text" id="setNewUser" placeholder="Enter new username">
+            <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">NEW USERNAME</label>
+            <input type="text" id="setNewUser" class="input-styled" placeholder="New username">
 
-            <label style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">New Admin Password</label>
-            <input type="password" id="setNewPass" placeholder="Enter new password (min 6 chars)">
+            <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">NEW PASSWORD</label>
+            <input type="password" id="setNewPass" class="input-styled" placeholder="New password (min 6 chars)">
 
-            <label style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">New Master Secret Code</label>
-            <input type="password" id="setNewSecret" placeholder="Enter new secret code (min 4 digits)">
+            <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">NEW MASTER SECRET CODE</label>
+            <input type="password" id="setNewSecret" class="input-styled" placeholder="New secret key (min 4 digits)">
 
-            <label style="font-size: 11px; color: #f87171; font-weight: 600; text-transform: uppercase;">Current Password (Required to confirm)</label>
-            <input type="password" id="setCurPass" placeholder="Enter current password">
+            <label style="font-size: 11px; color: #f87171; font-weight: 600;">CURRENT PASSWORD (REQUIRED)</label>
+            <input type="password" id="setCurPass" class="input-styled" placeholder="Enter current password">
 
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px;">
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
                 <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Cancel</button>
                 <button class="btn btn-primary" onclick="submitSettingsUpdate()">Save Changes</button>
             </div>
         </div>
     </div>
 
-    <!-- Custom Delete Confirmation Modal (Replaces browser confirm) -->
+    <!-- Confirm Modal -->
     <div class="modal-overlay" id="confirmModal">
-        <div class="modal" style="max-width: 380px; text-align: center;">
-            <h3 style="color: #f87171;">Permanently Delete?</h3>
-            <p>Are you sure you want to permanently delete this file and all its generated links? This action cannot be undone.</p>
+        <div class="modal" style="text-align: center;">
+            <h3 style="color: #f87171;">Delete File Permanently?</h3>
+            <p>Are you sure? This file and all its links will stop working permanently.</p>
             <div style="display: flex; gap: 10px; justify-content: center;">
                 <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Cancel</button>
                 <button class="btn btn-danger" id="confirmDeleteBtn">Delete File</button>
@@ -211,12 +253,10 @@
     </div>
 
     <script>
-        // Anti-Inspect / Disable F12
+        // Anti-Inspect
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.onkeydown = function(e) {
-            if (e.keyCode === 123 || 
-               (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) ||
-               (e.ctrlKey && e.keyCode === 85)) {
+            if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || (e.ctrlKey && e.keyCode === 85)) {
                 return false;
             }
         };
@@ -243,6 +283,12 @@
                 selectedFile = input.files[0];
                 const sizeMB = (selectedFile.size / (1024 * 1024)).toFixed(2);
                 document.getElementById('fileLabel').innerText = `${selectedFile.name} (${sizeMB} MB)`;
+                
+                // If custom name is empty, auto-populate clean name without extension
+                const nameInput = document.getElementById('fileCustomName');
+                if (!nameInput.value.trim()) {
+                    nameInput.value = selectedFile.name.replace(/\.[^/.]+$/, "");
+                }
             }
         }
 
@@ -252,9 +298,11 @@
                 return;
             }
 
+            const customName = document.getElementById('fileCustomName').value.trim();
             const formData = new FormData();
             formData.append('upload_type', 'file');
             formData.append('file', selectedFile);
+            formData.append('display_name', customName);
 
             const xhr = new XMLHttpRequest();
             const progressContainer = document.getElementById('progressContainer');
@@ -282,13 +330,13 @@
                     showToast('Upload completed successfully!', 'success');
                     setTimeout(() => location.reload(), 1200);
                 } else {
-                    showToast('Upload error. Please check server limits.', 'error');
+                    showToast('Upload error. File may exceed limit.', 'error');
                 }
             };
 
             xhr.onerror = function() {
                 uploadBtn.disabled = false;
-                showToast('Network failure during file upload.', 'error');
+                showToast('Network error during upload.', 'error');
             };
 
             xhr.open('POST', '/admin/upload', true);
@@ -303,7 +351,7 @@
             const fd = new FormData();
             fd.append('upload_type', 'link');
             fd.append('url', url);
-            fd.append('name', name);
+            fd.append('display_name', name);
 
             fetch('/admin/upload', { method: 'POST', body: fd })
                 .then(r => r.json())
@@ -322,16 +370,21 @@
                 .then(r => r.json())
                 .then(res => {
                     if (res.success) {
-                        // Replaces the visible link with the new one immediately
-                        document.getElementById(`code-txt-${itemId}`).innerText = `/v/${res.link_code}`;
-                        document.getElementById(`pass-txt-${itemId}`).innerText = res.password;
-                        document.getElementById(`badge-count-${itemId}`).innerText = `(Total Active: ${res.total_links})`;
-                        
-                        // Update the copy button event
-                        const copyBtn = document.querySelector(`#link-box-${itemId} button`);
-                        copyBtn.setAttribute('onclick', `copyCreds('${res.full_link}', '${res.password}')`);
+                        // Update desktop table
+                        const codeElem = document.getElementById(`code-txt-${itemId}`);
+                        const passElem = document.getElementById(`pass-txt-${itemId}`);
+                        if (codeElem) codeElem.innerText = `/v/${res.link_code}`;
+                        if (passElem) passElem.innerText = res.password;
 
-                        showToast('New link & pass created! Old links still active.', 'success');
+                        // Update mobile card
+                        const mCode = document.getElementById(`m-code-txt-${itemId}`);
+                        const mPass = document.getElementById(`m-pass-txt-${itemId}`);
+                        const mBtn = document.getElementById(`m-copy-btn-${itemId}`);
+                        if (mCode) mCode.innerText = `/v/${res.link_code}`;
+                        if (mPass) mPass.innerText = res.password;
+                        if (mBtn) mBtn.setAttribute('onclick', `copyCreds('${res.full_link}', '${res.password}')`);
+
+                        showToast('New link & pass generated! (Old links still active)', 'success');
                     } else {
                         showToast(res.message, 'error');
                     }
@@ -351,8 +404,11 @@
                 .then(res => {
                     closeModal('confirmModal');
                     if (res.success) {
-                        document.getElementById(`item-row-${pendingDeleteId}`).remove();
-                        showToast('File and all links permanently deleted.', 'success');
+                        const dRow = document.getElementById(`item-row-${pendingDeleteId}`);
+                        const mCard = document.getElementById(`mobile-card-${pendingDeleteId}`);
+                        if (dRow) dRow.remove();
+                        if (mCard) mCard.remove();
+                        showToast('File and links permanently deleted.', 'success');
                     } else {
                         showToast(res.message, 'error');
                     }
@@ -362,7 +418,7 @@
         function copyCreds(link, password) {
             const text = `Link: ${link}\nPassword: ${password}`;
             navigator.clipboard.writeText(text).then(() => {
-                showToast('Copied Link and Password to clipboard!', 'success');
+                showToast('Link & Password copied to clipboard!', 'success');
             });
         }
 
@@ -376,7 +432,7 @@
             const newSecret = document.getElementById('setNewSecret').value.trim();
 
             if (!curPass) {
-                showToast('Please enter your current password.', 'error');
+                showToast('Please enter current password to verify.', 'error');
                 return;
             }
 
@@ -396,7 +452,7 @@
                 return res;
             })
             .then(res => {
-                showToast(res.message, 'success');
+                showToast('Settings updated successfully!', 'success');
                 closeModal('settingsModal');
                 setTimeout(() => location.reload(), 1200);
             })
