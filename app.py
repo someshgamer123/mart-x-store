@@ -42,11 +42,9 @@ links_col.create_index([('link_code', ASCENDING)], unique=True)
 links_col.create_index([('item_id', ASCENDING)])
 items_col.create_index([('created_at', DESCENDING)])
 
-# Default Admin Setup
-# Default Username: admin
-# Default Password: ChangeThisPasswordImmediately123!
-# Default Secret Code: 889900
-if admins_col.count_documents({}) == 0:
+# Ensure Default Admin exists and has secret_code_hash
+default_admin = admins_col.find_one({})
+if not default_admin:
     default_pw_hash = generate_password_hash('ChangeThisPasswordImmediately123!')
     default_secret_hash = generate_password_hash('889900')
     admins_col.insert_one({
@@ -56,6 +54,14 @@ if admins_col.count_documents({}) == 0:
         'saved_device_tokens': [],
         'created_at': datetime.utcnow()
     })
+else:
+    # Auto-add secret_code_hash if database already had an existing admin
+    if not default_admin.get('secret_code_hash'):
+        default_secret_hash = generate_password_hash('889900')
+        admins_col.update_one(
+            {'_id': default_admin['_id']},
+            {'$set': {'secret_code_hash': default_secret_hash, 'saved_device_tokens': []}}
+        )
 
 # ---------------- Helper Functions ---------------- #
 
@@ -115,10 +121,19 @@ def verify_secret():
     device_token = data.get('device_token', '').strip()
 
     admin = admins_col.find_one({})
-    if not admin or not check_password_hash(admin.get('secret_code_hash', ''), secret_code):
+    if not admin:
+        return jsonify({'success': False, 'message': 'Admin not found.'}), 500
+
+    # Auto-heal missing secret_code_hash
+    secret_hash = admin.get('secret_code_hash')
+    if not secret_hash:
+        secret_hash = generate_password_hash('889900')
+        admins_col.update_one({'_id': admin['_id']}, {'$set': {'secret_code_hash': secret_hash}})
+
+    if not check_password_hash(secret_hash, secret_code):
         return jsonify({'success': False, 'message': 'Invalid Secret Access Key.'}), 401
 
-    # Check if this device is remembered
+    # Check device auto-login
     saved_tokens = admin.get('saved_device_tokens', [])
     if device_token and device_token in saved_tokens:
         session['admin_logged_in'] = True
@@ -126,7 +141,7 @@ def verify_secret():
         return jsonify({
             'success': True,
             'auto_login': True,
-            'message': 'Device verified. Access granted!'
+            'message': 'Device recognized. Access granted!'
         })
 
     return jsonify({
@@ -147,11 +162,10 @@ def login_credentials():
     if not admin:
         return jsonify({'success': False, 'message': 'System error'}), 500
 
-    # Verify secret code again for safety
-    if not check_password_hash(admin.get('secret_code_hash', ''), secret_code):
+    secret_hash = admin.get('secret_code_hash') or generate_password_hash('889900')
+    if not check_password_hash(secret_hash, secret_code):
         return jsonify({'success': False, 'message': 'Secret verification expired.'}), 401
 
-    # Verify username and password
     if admin['username'] != username or not check_password_hash(admin['password_hash'], password):
         return jsonify({'success': False, 'message': 'Incorrect username or password.'}), 401
 
@@ -220,7 +234,7 @@ def update_settings():
 def admin_dashboard():
     items = list(items_col.find().sort('created_at', DESCENDING))
     
-    # For each item, only find the LATEST active link to show on screen
+    # For each item, only show the LATEST active link on the screen
     item_display = []
     for item in items:
         str_id = str(item['_id'])
@@ -324,7 +338,6 @@ def recreate_link(item_id):
     if not item:
         return jsonify({'success': False, 'message': 'Item not found.'}), 404
         
-    # Generate new link & pass while keeping all previous links active in DB
     new_code = generate_unique_link_code()
     new_pass = generate_custom_password()
     
@@ -399,7 +412,7 @@ def verify_password():
     
     item = items_col.find_one({'_id': link['item_id']})
     if not item:
-        return jsonify({'success': False, 'message': 'Item no longer exists.'}), 404
+        return jsonify({'success': False, 'message': 'Item missing'}), 404
         
     session[f"auth_{link_code}"] = True
     mime_type, _ = mimetypes.guess_type(item['name'])
