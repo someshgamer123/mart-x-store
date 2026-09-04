@@ -29,9 +29,9 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 # ---------------- MongoDB Connection ---------------- #
 
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/mart_x_store')
-client = MongoClient(MONGO_URI)
 
-# Explicitly select database name so missing URI db names never throw errors
+# Explicitly authenticating against admin database for MongoDB Atlas
+client = MongoClient(MONGO_URI, authSource="admin")
 db = client['mart_x_store']
 
 # Collections
@@ -191,7 +191,7 @@ def upload_item():
     else:
         return jsonify({'success': False, 'message': 'Invalid upload type'}), 400
 
-    # Auto-generate unique link & custom 10-char password for this item
+    # Auto-generate unique link & custom 10-character password for this item
     link_code = generate_unique_link_code()
     custom_pass = generate_custom_password()
     
@@ -222,7 +222,7 @@ def recreate_link(item_id):
     if not item:
         return jsonify({'success': False, 'message': 'Item not found'}), 404
         
-    # Generate new link & pass while keeping old ones fully active
+    # Generate new link & pass while keeping all previous links completely active
     new_code = generate_unique_link_code()
     new_pass = generate_custom_password()
     
