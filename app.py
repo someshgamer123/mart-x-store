@@ -21,7 +21,7 @@ app.secret_key = os.getenv('SECRET_KEY', os.urandom(32))
 
 SITE_NAME = "Mart X Store"
 
-# File Upload Settings: 350 MB limit (safely covers 1 KB to 300 MB files)
+# File Upload Settings: 350 MB limit (safely supports 1 KB to 300 MB files)
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 350 * 1024 * 1024
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -30,7 +30,9 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/mart_x_store')
 client = MongoClient(MONGO_URI)
-db = client.get_database()
+
+# Explicitly select database name so missing URI db names never throw errors
+db = client['mart_x_store']
 
 # Collections
 admins_col = db['admins']
@@ -294,7 +296,7 @@ def verify_password():
     if not item:
         return jsonify({'success': False, 'message': 'Item missing'}), 404
         
-    # Store access grant in session
+    # Store access grant in session for authorized download
     session[f"auth_{link_code}"] = True
     
     mime_type, _ = mimetypes.guess_type(item['name'])
