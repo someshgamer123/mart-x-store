@@ -42,7 +42,7 @@ links_col.create_index([('link_code', ASCENDING)], unique=True)
 links_col.create_index([('item_id', ASCENDING)])
 items_col.create_index([('created_at', DESCENDING)])
 
-# Default Admin Init
+# Default Admin Init (If completely empty database)
 default_admin = admins_col.find_one({})
 if not default_admin:
     default_pw_hash = generate_password_hash('admin123')
@@ -87,7 +87,7 @@ def add_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     return response
 
-# ---------------- Root Route ---------------- #
+# ---------------- Root & Favicon Routes ---------------- #
 
 @app.route('/')
 def home():
@@ -112,25 +112,27 @@ def verify_secret():
     device_token = data.get('device_token', '').strip()
 
     admin = admins_col.find_one({})
-    secret_hash = admin.get('secret_code_hash') if admin else None
+    if not admin:
+        return jsonify({'success': False, 'message': 'Admin record missing.'}), 500
 
-    # EMERGENCY MASTER KEY 889900 ALWAYS WORKS
-    is_valid_secret = (secret_code == '889900') or (secret_hash and check_password_hash(secret_hash, secret_code))
+    secret_hash = admin.get('secret_code_hash')
+    if not secret_hash:
+        return jsonify({'success': False, 'message': 'Secret key not configured.'}), 401
 
-    if not is_valid_secret:
+    # STRICT CHECK: Only the stored hashed secret key works
+    if not check_password_hash(secret_hash, secret_code):
         return jsonify({'success': False, 'message': 'Invalid Secret Access Key.'}), 401
 
     # Check device auto-login
-    if admin:
-        saved_tokens = admin.get('saved_device_tokens', [])
-        if device_token and device_token in saved_tokens:
-            session['admin_logged_in'] = True
-            session['admin_username'] = admin['username']
-            return jsonify({
-                'success': True,
-                'auto_login': True,
-                'message': 'Device recognized. Access granted!'
-            })
+    saved_tokens = admin.get('saved_device_tokens', [])
+    if device_token and device_token in saved_tokens:
+        session['admin_logged_in'] = True
+        session['admin_username'] = admin['username']
+        return jsonify({
+            'success': True,
+            'auto_login': True,
+            'message': 'Device recognized. Access granted!'
+        })
 
     return jsonify({
         'success': True,
@@ -147,28 +149,22 @@ def login_credentials():
     save_login = data.get('save_login', False)
 
     admin = admins_col.find_one({})
-    secret_hash = admin.get('secret_code_hash') if admin else None
+    if not admin:
+        return jsonify({'success': False, 'message': 'System error'}), 500
 
-    # Verify secret
-    is_valid_secret = (secret_code == '889900') or (secret_hash and check_password_hash(secret_hash, secret_code))
-    if not is_valid_secret:
-        return jsonify({'success': False, 'message': 'Secret verification expired.'}), 401
+    secret_hash = admin.get('secret_code_hash')
+    if not secret_hash or not check_password_hash(secret_hash, secret_code):
+        return jsonify({'success': False, 'message': 'Secret verification expired or invalid.'}), 401
 
-    # EMERGENCY LOGIN (admin / admin123) ALWAYS WORKS
-    is_emergency_login = (username == 'admin' and password == 'admin123')
-    is_db_login = False
-    if admin:
-        is_db_login = (admin.get('username') == username and check_password_hash(admin.get('password_hash', ''), password))
-
-    if not (is_emergency_login or is_db_login):
+    # STRICT USERNAME & PASSWORD VERIFICATION
+    if admin.get('username') != username or not check_password_hash(admin.get('password_hash', ''), password):
         return jsonify({'success': False, 'message': 'Incorrect username or password.'}), 401
 
-    # Successful Login
     session['admin_logged_in'] = True
     session['admin_username'] = username
 
     new_device_token = None
-    if save_login and admin:
+    if save_login:
         new_device_token = generate_device_token()
         admins_col.update_one(
             {'_id': admin['_id']},
@@ -197,11 +193,8 @@ def update_settings():
     new_password = data.get('new_password', '').strip()
     new_secret_code = data.get('new_secret_code', '').strip()
 
-    admin = admins_col.find_one({})
-    
-    # Verify current password (or emergency pass admin123)
-    is_authorized = (current_password == 'admin123') or (admin and check_password_hash(admin.get('password_hash', ''), current_password))
-    if not is_authorized:
+    admin = admins_col.find_one({'username': session['admin_username']})
+    if not admin or not check_password_hash(admin.get('password_hash', ''), current_password):
         return jsonify({'success': False, 'message': 'Current password does not match.'}), 400
 
     updates = {}
@@ -216,17 +209,14 @@ def update_settings():
 
     if new_secret_code:
         if len(new_secret_code) < 4:
-            return jsonify({'success': False, 'message': 'Secret code must be at least 4 digits/characters.'}), 400
+            return jsonify({'success': False, 'message': 'Secret code must be at least 4 digits.'}), 400
+        # STRICTLY updates the hash so old secret keys stop working immediately
         updates['secret_code_hash'] = generate_password_hash(new_secret_code)
 
     if not updates:
         return jsonify({'success': False, 'message': 'No changes provided.'}), 400
 
-    if admin:
-        admins_col.update_one({'_id': admin['_id']}, {'$set': updates})
-    else:
-        admins_col.insert_one(updates)
-
+    admins_col.update_one({'_id': admin['_id']}, {'$set': updates})
     return jsonify({'success': True, 'message': 'Settings updated successfully!'})
 
 # ---------------- Admin Dashboard & Uploads ---------------- #
@@ -244,7 +234,7 @@ def admin_dashboard():
         
         item_display.append({
             'id': str_id,
-            'name': item['name'],
+            'name': item.get('name', 'Untitled'),
             'item_type': item['item_type'],
             'file_size': item.get('file_size', 0),
             'total_links': total_links,
@@ -252,8 +242,8 @@ def admin_dashboard():
             'latest_password': latest_link['password'] if latest_link else None,
         })
         
-    admin = admins_col.find_one({})
-    current_user = admin['username'] if admin and 'username' in admin else session.get('admin_username', 'admin')
+    admin = admins_col.find_one({'username': session['admin_username']})
+    current_user = admin['username'] if admin else session.get('admin_username', 'admin')
     
     return render_template(
         'admin.html',
@@ -267,6 +257,7 @@ def admin_dashboard():
 @login_required
 def upload_item():
     upload_type = request.form.get('upload_type')
+    custom_display_name = request.form.get('display_name', '').strip()
     
     if upload_type == 'file':
         if 'file' not in request.files:
@@ -276,15 +267,21 @@ def upload_item():
             return jsonify({'success': False, 'message': 'No file chosen.'}), 400
             
         orig_name = secure_filename(file.filename)
+        _, ext = os.path.splitext(orig_name)
         prefix = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(8))
         saved_filename = f"{prefix}_{orig_name}"
         save_path = os.path.join(app.config['UPLOAD_FOLDER'], saved_filename)
         file.save(save_path)
         
         file_size = os.path.getsize(save_path)
+        
+        # If user gave a custom app/file name, use that; otherwise use original name
+        display_name = custom_display_name if custom_display_name else orig_name
+        
         item_doc = {
             'item_type': 'file',
-            'name': orig_name,
+            'name': display_name,
+            'file_extension': ext,
             'file_path': saved_filename,
             'file_size': file_size,
             'created_at': datetime.utcnow()
@@ -294,13 +291,13 @@ def upload_item():
         
     elif upload_type == 'link':
         url = request.form.get('url', '').strip()
-        name = request.form.get('name', '').strip() or url
+        display_name = custom_display_name if custom_display_name else (url[:35] + '...')
         if not url:
             return jsonify({'success': False, 'message': 'Destination URL is required.'}), 400
             
         item_doc = {
             'item_type': 'link',
-            'name': name,
+            'name': display_name,
             'external_url': url,
             'file_size': 0,
             'created_at': datetime.utcnow()
@@ -359,7 +356,7 @@ def recreate_link(item_id):
         'password': new_pass,
         'total_links': total_links,
         'full_link': f"{request.host_url}v/{new_code}",
-        'message': 'New link & password created! (Old links are still fully working)'
+        'message': 'New link generated. Previous links still active.'
     })
 
 @app.route('/admin/delete-file/<item_id>', methods=['POST'])
@@ -382,7 +379,7 @@ def delete_file(item_id):
         links_col.delete_many({'item_id': obj_id})
         items_col.delete_one({'_id': obj_id})
         
-    return jsonify({'success': True, 'message': 'File and all links permanently deleted.'})
+    return jsonify({'success': True, 'message': 'Resource permanently deleted.'})
 
 # ---------------- Buyer / User Portal ---------------- #
 
@@ -411,14 +408,17 @@ def verify_password():
     
     link = links_col.find_one({'link_code': link_code})
     if not link or link['password'] != entered_password:
-        return jsonify({'success': False, 'message': 'Incorrect password. Access denied.'}), 401
+        return jsonify({'success': False, 'message': 'Incorrect password key. Access denied.'}), 401
     
     item = items_col.find_one({'_id': link['item_id']})
     if not item:
         return jsonify({'success': False, 'message': 'Item missing'}), 404
         
     session[f"auth_{link_code}"] = True
-    mime_type, _ = mimetypes.guess_type(item['name'])
+    
+    # Get mime type
+    stored_path = item.get('file_path', '')
+    mime_type, _ = mimetypes.guess_type(stored_path)
     
     return jsonify({
         'success': True,
@@ -446,11 +446,17 @@ def download_item(link_code):
     if item['item_type'] == 'link':
         return redirect(item['external_url'])
         
+    # Set the download file name to custom display name + original extension
+    ext = item.get('file_extension', '')
+    download_filename = item['name']
+    if ext and not download_filename.endswith(ext):
+        download_filename = f"{download_filename}{ext}"
+
     return send_from_directory(
         app.config['UPLOAD_FOLDER'],
         item['file_path'],
         as_attachment=True,
-        download_name=item['name']
+        download_name=download_filename
     )
 
 if __name__ == '__main__':
