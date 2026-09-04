@@ -21,7 +21,7 @@ app.secret_key = os.getenv('SECRET_KEY', os.urandom(32))
 
 SITE_NAME = "Mart X Store"
 
-# File Upload Settings: 350 MB limit (safely supports 1 KB to 300 MB files)
+# Upload Configuration (Up to 350 MB to safely support 300 MB files)
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 350 * 1024 * 1024
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -29,8 +29,6 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 # ---------------- MongoDB Connection ---------------- #
 
 MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/mart_x_store')
-
-# Explicitly authenticating against admin database for MongoDB Atlas
 client = MongoClient(MONGO_URI, authSource="admin")
 db = client['mart_x_store']
 
@@ -39,17 +37,23 @@ admins_col = db['admins']
 items_col = db['items']
 links_col = db['share_links']
 
-# Indexes for High Performance
+# Indexes
 links_col.create_index([('link_code', ASCENDING)], unique=True)
 links_col.create_index([('item_id', ASCENDING)])
 items_col.create_index([('created_at', DESCENDING)])
 
-# Initialize Default Admin if not present
-if admins_col.count_documents({'username': 'admin'}) == 0:
-    default_hash = generate_password_hash('ChangeThisPasswordImmediately123!')
+# Default Admin Setup
+# Default Username: admin
+# Default Password: ChangeThisPasswordImmediately123!
+# Default Secret Code: 889900
+if admins_col.count_documents({}) == 0:
+    default_pw_hash = generate_password_hash('ChangeThisPasswordImmediately123!')
+    default_secret_hash = generate_password_hash('889900')
     admins_col.insert_one({
         'username': 'admin',
-        'password_hash': default_hash,
+        'password_hash': default_pw_hash,
+        'secret_code_hash': default_secret_hash,
+        'saved_device_tokens': [],
         'created_at': datetime.utcnow()
     })
 
@@ -58,13 +62,13 @@ if admins_col.count_documents({'username': 'admin'}) == 0:
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'admin_logged_in' not in session:
+        if not session.get('admin_logged_in'):
             return redirect(url_for('admin_login'))
         return f(*args, **kwargs)
     return decorated_function
 
 def generate_custom_password(length=10):
-    """Format: 10 lowercase letters, e.g. aoudfnegcu"""
+    """Generates password format like: aoudfnegcu"""
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for _ in range(length))
 
@@ -75,6 +79,10 @@ def generate_unique_link_code(length=12):
         if not links_col.find_one({'link_code': code}):
             return code
 
+def generate_device_token(length=48):
+    chars = string.ascii_letters + string.digits
+    return ''.join(random.choice(chars) for _ in range(length))
+
 @app.after_request
 def add_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -82,65 +90,159 @@ def add_security_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     return response
 
-# ---------------- Admin Auth Routes ---------------- #
+# ---------------- Root & Public Routes ---------------- #
 
-@app.route('/admin/login', methods=['GET', 'POST'])
+@app.route('/')
+def home():
+    return redirect(url_for('admin_login'))
+
+@app.route('/favicon.ico')
+def favicon():
+    return ('', 204)
+
+# ---------------- Admin Auth & 2-Step Login ---------------- #
+
+@app.route('/admin/login')
 def admin_login():
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
-        
-        admin = admins_col.find_one({'username': username})
-        if admin and check_password_hash(admin['password_hash'], password):
-            session['admin_logged_in'] = True
-            session['admin_username'] = username
-            return redirect(url_for('admin_dashboard'))
-        return render_template('login.html', site_name=SITE_NAME, error='Invalid credentials')
-        
+    if session.get('admin_logged_in'):
+        return redirect(url_for('admin_dashboard'))
     return render_template('login.html', site_name=SITE_NAME)
+
+@app.route('/api/verify-secret', methods=['POST'])
+def verify_secret():
+    data = request.get_json() or {}
+    secret_code = data.get('secret_code', '').strip()
+    device_token = data.get('device_token', '').strip()
+
+    admin = admins_col.find_one({})
+    if not admin or not check_password_hash(admin.get('secret_code_hash', ''), secret_code):
+        return jsonify({'success': False, 'message': 'Invalid Secret Access Key.'}), 401
+
+    # Check if this device is remembered
+    saved_tokens = admin.get('saved_device_tokens', [])
+    if device_token and device_token in saved_tokens:
+        session['admin_logged_in'] = True
+        session['admin_username'] = admin['username']
+        return jsonify({
+            'success': True,
+            'auto_login': True,
+            'message': 'Device verified. Access granted!'
+        })
+
+    return jsonify({
+        'success': True,
+        'auto_login': False,
+        'message': 'Secret key verified. Please enter credentials.'
+    })
+
+@app.route('/api/login-credentials', methods=['POST'])
+def login_credentials():
+    data = request.get_json() or {}
+    secret_code = data.get('secret_code', '').strip()
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    save_login = data.get('save_login', False)
+
+    admin = admins_col.find_one({})
+    if not admin:
+        return jsonify({'success': False, 'message': 'System error'}), 500
+
+    # Verify secret code again for safety
+    if not check_password_hash(admin.get('secret_code_hash', ''), secret_code):
+        return jsonify({'success': False, 'message': 'Secret verification expired.'}), 401
+
+    # Verify username and password
+    if admin['username'] != username or not check_password_hash(admin['password_hash'], password):
+        return jsonify({'success': False, 'message': 'Incorrect username or password.'}), 401
+
+    session['admin_logged_in'] = True
+    session['admin_username'] = admin['username']
+
+    new_device_token = None
+    if save_login:
+        new_device_token = generate_device_token()
+        admins_col.update_one(
+            {'_id': admin['_id']},
+            {'$push': {'saved_device_tokens': new_device_token}}
+        )
+
+    return jsonify({
+        'success': True,
+        'device_token': new_device_token,
+        'message': 'Login successful!'
+    })
 
 @app.route('/admin/logout')
 def admin_logout():
     session.clear()
     return redirect(url_for('admin_login'))
 
-@app.route('/admin/change-password', methods=['POST'])
+# ---------------- Admin Settings (Update Username, Password, Secret) ---------------- #
+
+@app.route('/admin/update-settings', methods=['POST'])
 @login_required
-def change_admin_password():
-    current_password = request.form.get('current_password', '').strip()
-    new_password = request.form.get('new_password', '').strip()
-    
-    if len(new_password) < 6:
-        return jsonify({'success': False, 'message': 'New password must be at least 6 characters.'}), 400
-        
+def update_settings():
+    data = request.get_json() or {}
+    current_password = data.get('current_password', '').strip()
+    new_username = data.get('new_username', '').strip()
+    new_password = data.get('new_password', '').strip()
+    new_secret_code = data.get('new_secret_code', '').strip()
+
     admin = admins_col.find_one({'username': session['admin_username']})
     if not admin or not check_password_hash(admin['password_hash'], current_password):
-        return jsonify({'success': False, 'message': 'Incorrect current password.'}), 400
-        
-    new_hash = generate_password_hash(new_password)
-    admins_col.update_one({'_id': admin['_id']}, {'$set': {'password_hash': new_hash}})
-    
-    return jsonify({'success': True, 'message': 'Master password changed successfully.'})
+        return jsonify({'success': False, 'message': 'Current password does not match.'}), 400
 
-# ---------------- Admin Management Routes ---------------- #
+    updates = {}
+    if new_username and len(new_username) >= 3:
+        updates['username'] = new_username
+        session['admin_username'] = new_username
+
+    if new_password:
+        if len(new_password) < 6:
+            return jsonify({'success': False, 'message': 'New password must be at least 6 characters.'}), 400
+        updates['password_hash'] = generate_password_hash(new_password)
+
+    if new_secret_code:
+        if len(new_secret_code) < 4:
+            return jsonify({'success': False, 'message': 'Secret code must be at least 4 digits/characters.'}), 400
+        updates['secret_code_hash'] = generate_password_hash(new_secret_code)
+
+    if not updates:
+        return jsonify({'success': False, 'message': 'No changes provided.'}), 400
+
+    admins_col.update_one({'_id': admin['_id']}, {'$set': updates})
+    return jsonify({'success': True, 'message': 'Settings updated successfully!'})
+
+# ---------------- Admin Dashboard & Uploads ---------------- #
 
 @app.route('/admin')
 @login_required
 def admin_dashboard():
     items = list(items_col.find().sort('created_at', DESCENDING))
     
-    # Fetch and group all links by item_id
-    all_links = list(links_col.find().sort('created_at', DESCENDING))
-    item_links = {}
-    for l in all_links:
-        s_id = str(l['item_id'])
-        item_links.setdefault(s_id, []).append(l)
+    # For each item, only find the LATEST active link to show on screen
+    item_display = []
+    for item in items:
+        str_id = str(item['_id'])
+        total_links = links_col.count_documents({'item_id': item['_id']})
+        latest_link = links_col.find_one({'item_id': item['_id']}, sort=[('created_at', DESCENDING)])
         
+        item_display.append({
+            'id': str_id,
+            'name': item['name'],
+            'item_type': item['item_type'],
+            'file_size': item.get('file_size', 0),
+            'total_links': total_links,
+            'latest_link_code': latest_link['link_code'] if latest_link else None,
+            'latest_password': latest_link['password'] if latest_link else None,
+        })
+        
+    admin = admins_col.find_one({'username': session['admin_username']})
     return render_template(
         'admin.html',
         site_name=SITE_NAME,
-        items=items,
-        item_links=item_links,
+        items=item_display,
+        current_username=admin['username'] if admin else 'admin',
         host_url=request.host_url
     )
 
@@ -151,10 +253,10 @@ def upload_item():
     
     if upload_type == 'file':
         if 'file' not in request.files:
-            return jsonify({'success': False, 'message': 'No file received'}), 400
+            return jsonify({'success': False, 'message': 'Please select a file.'}), 400
         file = request.files['file']
         if file.filename == '':
-            return jsonify({'success': False, 'message': 'No file chosen'}), 400
+            return jsonify({'success': False, 'message': 'No file chosen.'}), 400
             
         orig_name = secure_filename(file.filename)
         prefix = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(8))
@@ -177,7 +279,7 @@ def upload_item():
         url = request.form.get('url', '').strip()
         name = request.form.get('name', '').strip() or url
         if not url:
-            return jsonify({'success': False, 'message': 'Destination URL is required'}), 400
+            return jsonify({'success': False, 'message': 'Destination URL is required.'}), 400
             
         item_doc = {
             'item_type': 'link',
@@ -189,9 +291,8 @@ def upload_item():
         res = items_col.insert_one(item_doc)
         item_id = res.inserted_id
     else:
-        return jsonify({'success': False, 'message': 'Invalid upload type'}), 400
+        return jsonify({'success': False, 'message': 'Invalid upload type.'}), 400
 
-    # Auto-generate unique link & custom 10-character password for this item
     link_code = generate_unique_link_code()
     custom_pass = generate_custom_password()
     
@@ -205,6 +306,7 @@ def upload_item():
     return jsonify({
         'success': True,
         'message': 'Upload completed successfully!',
+        'item_id': str(item_id),
         'link_code': link_code,
         'password': custom_pass,
         'full_link': f"{request.host_url}v/{link_code}"
@@ -216,13 +318,13 @@ def recreate_link(item_id):
     try:
         obj_id = ObjectId(item_id)
     except Exception:
-        return jsonify({'success': False, 'message': 'Invalid ID'}), 400
+        return jsonify({'success': False, 'message': 'Invalid ID.'}), 400
         
     item = items_col.find_one({'_id': obj_id})
     if not item:
-        return jsonify({'success': False, 'message': 'Item not found'}), 404
+        return jsonify({'success': False, 'message': 'Item not found.'}), 404
         
-    # Generate new link & pass while keeping all previous links completely active
+    # Generate new link & pass while keeping all previous links active in DB
     new_code = generate_unique_link_code()
     new_pass = generate_custom_password()
     
@@ -233,11 +335,15 @@ def recreate_link(item_id):
         'created_at': datetime.utcnow()
     })
     
+    total_links = links_col.count_documents({'item_id': obj_id})
+    
     return jsonify({
         'success': True,
         'link_code': new_code,
         'password': new_pass,
-        'full_link': f"{request.host_url}v/{new_code}"
+        'total_links': total_links,
+        'full_link': f"{request.host_url}v/{new_code}",
+        'message': 'New link & password created! (Old links are still fully working)'
     })
 
 @app.route('/admin/delete-file/<item_id>', methods=['POST'])
@@ -246,7 +352,7 @@ def delete_file(item_id):
     try:
         obj_id = ObjectId(item_id)
     except Exception:
-        return jsonify({'success': False, 'message': 'Invalid ID'}), 400
+        return jsonify({'success': False, 'message': 'Invalid ID.'}), 400
 
     item = items_col.find_one({'_id': obj_id})
     if item:
@@ -257,13 +363,12 @@ def delete_file(item_id):
                     os.remove(disk_path)
                 except Exception:
                     pass
-        # Delete item and all its associated links from MongoDB
         links_col.delete_many({'item_id': obj_id})
         items_col.delete_one({'_id': obj_id})
         
-    return jsonify({'success': True, 'message': 'File and associated links permanently deleted.'})
+    return jsonify({'success': True, 'message': 'File and all links permanently deleted.'})
 
-# ---------------- User / Buyer Portal ---------------- #
+# ---------------- Buyer / User Portal ---------------- #
 
 @app.route('/v/<link_code>')
 def view_share_page(link_code):
@@ -294,12 +399,11 @@ def verify_password():
     
     item = items_col.find_one({'_id': link['item_id']})
     if not item:
-        return jsonify({'success': False, 'message': 'Item missing'}), 404
+        return jsonify({'success': False, 'message': 'Item no longer exists.'}), 404
         
-    # Store access grant in session for authorized download
     session[f"auth_{link_code}"] = True
-    
     mime_type, _ = mimetypes.guess_type(item['name'])
+    
     return jsonify({
         'success': True,
         'item_type': item['item_type'],
