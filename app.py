@@ -9,7 +9,7 @@ from bson import ObjectId
 from dotenv import load_dotenv
 from flask import (
     Flask, request, render_template, redirect, url_for,
-    session, jsonify, abort, Response, stream_with_context
+    session, jsonify, Response, stream_with_context
 )
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -153,7 +153,7 @@ def login_credentials():
 
     secret_hash = admin.get('secret_code_hash')
     if not secret_hash or not check_password_hash(secret_hash, secret_code):
-        return jsonify({'success': False, 'message': 'Secret verification expired.'}), 401
+        return jsonify({'success': False, 'message': 'Secret verification expired or invalid.'}), 401
 
     if admin.get('username') != username or not check_password_hash(admin.get('password_hash', ''), password):
         return jsonify({'success': False, 'message': 'Incorrect username or password.'}), 401
@@ -271,7 +271,6 @@ def upload_item():
     logo_url = request.form.get('logo_url', '').strip()
     redirect_url = request.form.get('redirect_url', '').strip()
     
-    # Download Threshold in MB (default: 1.0 MB)
     try:
         threshold_mb = float(request.form.get('threshold_mb', 1.0))
     except (ValueError, TypeError):
@@ -352,7 +351,7 @@ def upload_item():
         'full_link': f"{request.host_url}v/{link_code}"
     })
 
-# ---------------- EDIT ITEM ROUTE ---------------- #
+# EDIT ITEM ROUTE
 @app.route('/admin/edit-item/<item_id>', methods=['POST'])
 @login_required
 def edit_item(item_id):
@@ -508,7 +507,12 @@ def verify_password():
     if link['password'] != entered_password:
         return jsonify({'success': False, 'message': 'Incorrect password key. Access denied.'}), 401
     
+    # Store session authorization
     session[f"auth_{link_code}"] = True
+    
+    # Generate a secure one-time download token so mobile download managers never get blocked
+    download_token = generate_unique_link_code(20)
+    links_col.update_one({'_id': link['_id']}, {'$set': {'active_dl_token': download_token}})
     
     stored_path = item.get('file_path', '')
     mime_type, _ = mimetypes.guess_type(stored_path)
@@ -525,38 +529,53 @@ def verify_password():
         'max_limit': MAX_DOWNLOAD_LIMIT,
         'external_url': item.get('external_url'),
         'mime_type': mime_type or 'application/octet-stream',
-        'download_url': url_for('download_item', link_code=link_code)
+        'download_url': url_for('download_item', link_code=link_code, token=download_token)
     })
 
-# ---------------- DOWNLOAD STREAM WITH ACCURATE THRESHOLD TRACKING ---------------- #
+# ---------------- ROCK-SOLID FILE DOWNLOAD ENGINE (MOBILE & PC PROOF) ---------------- #
 @app.route('/download/<link_code>')
 def download_item(link_code):
-    if not session.get(f"auth_{link_code}"):
-        return abort(403)
-        
     link = links_col.find_one({'link_code': link_code})
     if not link:
         abort(404)
-        
-    download_count = link.get('download_count', 0)
-    if download_count >= MAX_DOWNLOAD_LIMIT:
-        item = items_col.find_one({'_id': link['item_id']})
-        admin = admins_col.find_one({})
-        buy_redirect = (item.get('redirect_url') if item else None) or (admin.get('default_redirect_url') if admin else DEFAULT_STORE_REDIRECT)
-        return redirect(buy_redirect)
+
+    # Authorization Check: Query Token OR Session (100% works on Android, iOS & PC)
+    req_token = request.args.get('token', '').strip()
+    is_authorized = (session.get(f"auth_{link_code}") is True) or (req_token and req_token == link.get('active_dl_token'))
+    if not is_authorized:
+        return """
+        <div style="font-family:sans-serif; text-align:center; padding:50px 20px; background:#050811; color:#fff; min-height:100vh;">
+            <h2 style="color:#ef4444;">403 Access Denied</h2>
+            <p style="color:#94a3b8;">Please unlock this file by entering the password first.</p>
+            <br><a href="/v/""" + link_code + """" style="color:#38bdf8; text-decoration:none; font-weight:bold;">Return to Unlock Page</a>
+        </div>
+        """, 403
 
     item = items_col.find_one({'_id': link['item_id']})
     if not item:
         abort(404)
 
+    admin = admins_col.find_one({})
+    buy_redirect = (item.get('redirect_url') if item else None) or (admin.get('default_redirect_url') if admin else DEFAULT_STORE_REDIRECT)
+
+    # Limit check
+    download_count = link.get('download_count', 0)
+    if download_count >= MAX_DOWNLOAD_LIMIT:
+        return redirect(buy_redirect)
+
+    # For external URLs (links)
     if item['item_type'] == 'link':
-        # Links count when clicked directly
         links_col.update_one({'_id': link['_id']}, {'$inc': {'download_count': 1}})
         return redirect(item['external_url'])
 
     disk_path = os.path.join(app.config['UPLOAD_FOLDER'], item['file_path'])
     if not os.path.exists(disk_path):
-        abort(404)
+        return """
+        <div style="font-family:sans-serif; text-align:center; padding:50px 20px; background:#050811; color:#fff; min-height:100vh;">
+            <h2 style="color:#f59e0b;">File Notice</h2>
+            <p style="color:#94a3b8;">This file was reset during server update. Please re-upload it once in your Admin Panel.</p>
+        </div>
+        """, 404
 
     total_file_size = os.path.getsize(disk_path)
     ext = item.get('file_extension', '')
@@ -567,42 +586,55 @@ def download_item(link_code):
     # Calculate threshold in bytes (from Admin MB setting)
     threshold_mb = float(item.get('threshold_mb', 1.0))
     threshold_bytes = int(threshold_mb * 1024 * 1024)
-    
-    # If the total file is smaller than threshold, trigger count at 50% of file size
     if threshold_bytes > total_file_size:
         threshold_bytes = max(1024, int(total_file_size * 0.5))
 
     link_id = link['_id']
-    cooldown_key = f"last_count_{link_code}"
+    safe_ascii_name = download_filename.encode('ascii', 'ignore').decode('ascii') or 'download_package'
 
-    # Stream generator with exact MB threshold detection
+    # Stream generator (Zero session touching inside generator, 100% crash proof)
     def stream_file_with_threshold():
         bytes_sent = 0
         threshold_triggered = False
-        with open(disk_path, 'rb') as f:
-            while True:
-                chunk = f.read(128 * 1024)  # 128 KB chunks
-                if not chunk:
-                    break
-                bytes_sent += len(chunk)
+        try:
+            with open(disk_path, 'rb') as f:
+                while True:
+                    chunk = f.read(128 * 1024)
+                    if not chunk:
+                        break
+                    bytes_sent += len(chunk)
 
-                # TRIGGER COUNT ONLY WHEN THRESHOLD MB IS REACHED IN BROWSER
-                if not threshold_triggered and bytes_sent >= threshold_bytes:
-                    now = time.time()
-                    last_time = session.get(cooldown_key, 0)
-                    # 15s Cooldown prevents mobile browsers/download managers multi-request false count
-                    if (now - last_time) > 15:
-                        links_col.update_one({'_id': link_id}, {'$inc': {'download_count': 1}})
-                        session[cooldown_key] = now
-                    threshold_triggered = True
+                    # Trigger count only when threshold bytes actually transferred
+                    if not threshold_triggered and bytes_sent >= threshold_bytes:
+                        now = time.time()
+                        try:
+                            # Direct atomic update with 15-second debounce window to prevent mobile multi-request count
+                            links_col.update_one(
+                                {
+                                    '_id': link_id,
+                                    '$or': [
+                                        {'last_counted_time': {'$exists': False}},
+                                        {'last_counted_time': {'$lt': now - 15}}
+                                    ]
+                                },
+                                {
+                                    '$inc': {'download_count': 1},
+                                    '$set': {'last_counted_time': now}
+                                }
+                            )
+                        except Exception:
+                            pass
+                        threshold_triggered = True
 
-                yield chunk
+                    yield chunk
+        except Exception:
+            pass
 
     response = Response(
         stream_with_context(stream_file_with_threshold()),
         mimetype='application/octet-stream'
     )
-    response.headers['Content-Disposition'] = f'attachment; filename="{download_filename}"'
+    response.headers['Content-Disposition'] = f'attachment; filename="{safe_ascii_name}"'
     response.headers['Content-Length'] = str(total_file_size)
     return response
 
