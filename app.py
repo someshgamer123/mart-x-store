@@ -20,6 +20,8 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', os.urandom(32))
 
 SITE_NAME = "Mart X Store"
+MAX_DOWNLOAD_LIMIT = 3
+DEFAULT_STORE_REDIRECT = "https://t.me/"  # Default redirect if no custom purchase URL provided
 
 # Upload Configuration (Up to 350 MB to safely support 300 MB files)
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -52,6 +54,7 @@ if not default_admin:
         'password_hash': default_pw_hash,
         'secret_code_hash': default_secret_hash,
         'saved_device_tokens': [],
+        'default_redirect_url': DEFAULT_STORE_REDIRECT,
         'created_at': datetime.utcnow()
     })
 
@@ -116,10 +119,7 @@ def verify_secret():
         return jsonify({'success': False, 'message': 'Admin record missing.'}), 500
 
     secret_hash = admin.get('secret_code_hash')
-    if not secret_hash:
-        return jsonify({'success': False, 'message': 'Secret key not configured.'}), 401
-
-    if not check_password_hash(secret_hash, secret_code):
+    if not secret_hash or not check_password_hash(secret_hash, secret_code):
         return jsonify({'success': False, 'message': 'Invalid Secret Access Key.'}), 401
 
     saved_tokens = admin.get('saved_device_tokens', [])
@@ -189,6 +189,7 @@ def update_settings():
     new_username = data.get('new_username', '').strip()
     new_password = data.get('new_password', '').strip()
     new_secret_code = data.get('new_secret_code', '').strip()
+    default_redirect = data.get('default_redirect_url', '').strip()
 
     admin = admins_col.find_one({'username': session['admin_username']})
     if not admin or not check_password_hash(admin.get('password_hash', ''), current_password):
@@ -209,6 +210,9 @@ def update_settings():
             return jsonify({'success': False, 'message': 'Secret code must be at least 4 digits.'}), 400
         updates['secret_code_hash'] = generate_password_hash(new_secret_code)
 
+    if default_redirect:
+        updates['default_redirect_url'] = default_redirect
+
     if not updates:
         return jsonify({'success': False, 'message': 'No changes provided.'}), 400
 
@@ -228,6 +232,9 @@ def admin_dashboard():
         total_links = links_col.count_documents({'item_id': item['_id']})
         latest_link = links_col.find_one({'item_id': item['_id']}, sort=[('created_at', DESCENDING)])
         
+        # Download count for latest link (defaults to 0 for old records)
+        downloads_used = latest_link.get('download_count', 0) if latest_link else 0
+        
         item_display.append({
             'id': str_id,
             'name': item.get('name', 'Untitled'),
@@ -235,18 +242,22 @@ def admin_dashboard():
             'item_type': item['item_type'],
             'file_size': item.get('file_size', 0),
             'total_links': total_links,
+            'downloads_used': downloads_used,
+            'max_limit': MAX_DOWNLOAD_LIMIT,
             'latest_link_code': latest_link['link_code'] if latest_link else None,
             'latest_password': latest_link['password'] if latest_link else None,
         })
         
     admin = admins_col.find_one({'username': session['admin_username']})
     current_user = admin['username'] if admin else session.get('admin_username', 'admin')
+    curr_redirect = admin.get('default_redirect_url', DEFAULT_STORE_REDIRECT) if admin else DEFAULT_STORE_REDIRECT
     
     return render_template(
         'admin.html',
         site_name=SITE_NAME,
         items=item_display,
         current_username=current_user,
+        default_redirect_url=curr_redirect,
         host_url=request.host_url
     )
 
@@ -256,6 +267,7 @@ def upload_item():
     upload_type = request.form.get('upload_type')
     custom_display_name = request.form.get('display_name', '').strip()
     logo_url = request.form.get('logo_url', '').strip()
+    redirect_url = request.form.get('redirect_url', '').strip()
     
     if upload_type == 'file':
         if 'file' not in request.files:
@@ -278,6 +290,7 @@ def upload_item():
             'item_type': 'file',
             'name': display_name,
             'logo_url': logo_url,
+            'redirect_url': redirect_url,
             'file_extension': ext,
             'file_path': saved_filename,
             'file_size': file_size,
@@ -296,6 +309,7 @@ def upload_item():
             'item_type': 'link',
             'name': display_name,
             'logo_url': logo_url,
+            'redirect_url': redirect_url,
             'external_url': url,
             'file_size': 0,
             'created_at': datetime.utcnow()
@@ -312,6 +326,7 @@ def upload_item():
         'item_id': item_id,
         'link_code': link_code,
         'password': custom_pass,
+        'download_count': 0,  # Starts at 0
         'created_at': datetime.utcnow()
     })
     
@@ -339,10 +354,12 @@ def recreate_link(item_id):
     new_code = generate_unique_link_code()
     new_pass = generate_custom_password()
     
+    # New link initialized with fresh 0 download count
     links_col.insert_one({
         'item_id': obj_id,
         'link_code': new_code,
         'password': new_pass,
+        'download_count': 0,
         'created_at': datetime.utcnow()
     })
     
@@ -354,6 +371,8 @@ def recreate_link(item_id):
         'link_code': new_code,
         'password': new_pass,
         'total_links': total_links,
+        'downloads_used': 0,
+        'max_limit': MAX_DOWNLOAD_LIMIT,
         'full_link': f"{request.host_url}v/{new_code}",
         'message': 'New link & password created! (Old links still work 100%)'
     })
@@ -392,11 +411,24 @@ def view_share_page(link_code):
     if not item:
         abort(404)
         
+    admin = admins_col.find_one({})
+    # Determine the redirect link for purchasing new key
+    fallback_redirect = admin.get('default_redirect_url', DEFAULT_STORE_REDIRECT) if admin else DEFAULT_STORE_REDIRECT
+    buy_redirect = item.get('redirect_url') or fallback_redirect
+    
+    # Get current download count (safely defaults to 0 for all previous links)
+    download_count = link.get('download_count', 0)
+    is_expired = download_count >= MAX_DOWNLOAD_LIMIT
+    
     return render_template(
         'share.html',
         site_name=SITE_NAME,
         link_code=link_code,
-        item=item
+        item=item,
+        download_count=download_count,
+        max_limit=MAX_DOWNLOAD_LIMIT,
+        is_expired=is_expired,
+        buy_redirect=buy_redirect
     )
 
 @app.route('/api/verify-password', methods=['POST'])
@@ -406,17 +438,37 @@ def verify_password():
     entered_password = data.get('password', '').strip()
     
     link = links_col.find_one({'link_code': link_code})
-    if not link or link['password'] != entered_password:
-        return jsonify({'success': False, 'message': 'Incorrect password key. Access denied.'}), 401
-    
+    if not link:
+        return jsonify({'success': False, 'message': 'Invalid link code.'}), 404
+        
     item = items_col.find_one({'_id': link['item_id']})
     if not item:
         return jsonify({'success': False, 'message': 'Item missing'}), 404
-        
+
+    admin = admins_col.find_one({})
+    fallback_redirect = admin.get('default_redirect_url', DEFAULT_STORE_REDIRECT) if admin else DEFAULT_STORE_REDIRECT
+    buy_redirect = item.get('redirect_url') or fallback_redirect
+
+    # 1. CHECK IF DOWNLOAD LIMIT IS ALREADY REACHED
+    download_count = link.get('download_count', 0)
+    if download_count >= MAX_DOWNLOAD_LIMIT:
+        return jsonify({
+            'success': False,
+            'limit_exceeded': True,
+            'buy_redirect': buy_redirect,
+            'message': f'Access Denied: Download limit reached ({MAX_DOWNLOAD_LIMIT}/{MAX_DOWNLOAD_LIMIT} used).'
+        }), 403
+
+    # 2. VERIFY PASSWORD
+    if link['password'] != entered_password:
+        return jsonify({'success': False, 'message': 'Incorrect password key. Access denied.'}), 401
+    
     session[f"auth_{link_code}"] = True
     
     stored_path = item.get('file_path', '')
     mime_type, _ = mimetypes.guess_type(stored_path)
+    
+    remaining_downloads = max(0, MAX_DOWNLOAD_LIMIT - download_count)
     
     return jsonify({
         'success': True,
@@ -424,6 +476,9 @@ def verify_password():
         'name': item['name'],
         'logo_url': item.get('logo_url', ''),
         'file_size': item['file_size'],
+        'download_count': download_count,
+        'remaining_downloads': remaining_downloads,
+        'max_limit': MAX_DOWNLOAD_LIMIT,
         'external_url': item.get('external_url'),
         'mime_type': mime_type or 'application/octet-stream',
         'download_url': url_for('download_item', link_code=link_code)
@@ -438,10 +493,21 @@ def download_item(link_code):
     if not link:
         abort(404)
         
+    # Check limit again on actual download request
+    download_count = link.get('download_count', 0)
+    if download_count >= MAX_DOWNLOAD_LIMIT:
+        item = items_col.find_one({'_id': link['item_id']})
+        admin = admins_col.find_one({})
+        buy_redirect = (item.get('redirect_url') if item else None) or (admin.get('default_redirect_url') if admin else DEFAULT_STORE_REDIRECT)
+        return redirect(buy_redirect)
+
     item = items_col.find_one({'_id': link['item_id']})
     if not item:
         abort(404)
         
+    # INCREMENT DOWNLOAD COUNT STRICTLY BY 1 IN DATABASE
+    links_col.update_one({'_id': link['_id']}, {'$inc': {'download_count': 1}})
+
     if item['item_type'] == 'link':
         return redirect(item['external_url'])
         
