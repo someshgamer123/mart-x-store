@@ -18,7 +18,7 @@
             user-select: none;
         }
         .portal-card {
-            background: linear-gradient(180deg, rgba(15, 23, 42, 0.85), rgba(7, 11, 22, 0.95));
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(7, 11, 22, 0.98));
             border: 1px solid rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(20px);
             border-radius: 24px;
@@ -35,26 +35,69 @@
             letter-spacing: 1.5px;
             text-transform: uppercase;
             color: #38bdf8;
-            margin-bottom: 18px;
+            margin-bottom: 20px;
             background: rgba(56, 189, 248, 0.08);
             border: 1px solid rgba(56, 189, 248, 0.2);
             padding: 5px 12px;
             border-radius: 999px;
         }
-        .icon-circle {
-            width: 60px;
-            height: 60px;
+
+        /* App Logo with Dynamic Lock Overlay */
+        .logo-container {
+            position: relative;
+            width: 84px;
+            height: 84px;
+            margin: 0 auto 20px auto;
+        }
+        .app-logo-img {
+            width: 84px;
+            height: 84px;
+            border-radius: 20px;
+            object-fit: cover;
+            background: #090e1a;
+            border: 1.5px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            transition: all 0.3s ease;
+        }
+        .locked-logo {
+            filter: grayscale(40%) brightness(80%);
+        }
+        .unlocked-logo {
+            filter: none;
+            border-color: #38bdf8;
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+        }
+        .lock-badge-icon {
+            position: absolute;
+            bottom: -6px;
+            right: -6px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #0284c7;
+            border: 2px solid #040711;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            transition: 0.3s;
+        }
+        .lock-badge-icon svg { width: 16px; height: 16px; fill: #fff; }
+
+        /* Default Icon if no PNG provided */
+        .default-icon-circle {
+            width: 68px;
+            height: 68px;
             background: rgba(56, 189, 248, 0.1);
             border: 1px solid rgba(56, 189, 248, 0.25);
             border-radius: 50%;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 18px;
+            margin-bottom: 20px;
         }
-        .icon-circle svg { width: 28px; height: 28px; fill: #38bdf8; }
+        .default-icon-circle svg { width: 30px; height: 30px; fill: #38bdf8; }
 
-        /* Dynamic App/File Name as Heading */
         h1.app-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; color: #fff; line-height: 1.3; word-break: break-word; }
         p.subtitle { font-size: 13px; color: #94a3b8; margin-bottom: 24px; line-height: 1.5; }
         
@@ -114,15 +157,25 @@
     <div class="portal-card">
         <div class="brand-badge">{{ site_name }}</div>
 
-        <!-- Locked Screen (Shows App Name directly!) -->
-        <div id="lockedSection">
-            <div class="icon-circle">
+        <!-- Dynamic Logo with Lock -->
+        <div class="logo-container" id="logoBox">
+            {% if item.logo_url %}
+            <img src="{{ item.logo_url }}" id="displayLogo" class="app-logo-img locked-logo" alt="Logo">
+            <div class="lock-badge-icon" id="lockStatusIcon">
+                <!-- Locked SVG -->
                 <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
             </div>
-            
-            <!-- App Name is dynamically shown here -->
+            {% else %}
+            <div class="default-icon-circle" id="defaultIcon">
+                <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Locked Screen -->
+        <div id="lockedSection">
             <h1 class="app-title">{{ item.name }}</h1>
-            <p class="subtitle">Enter the access password key to download this app/file.</p>
+            <p class="subtitle">Enter the password key to unlock and download.</p>
             
             <input type="password" id="passInput" class="pw-input" placeholder="Enter password (e.g. aoudfnegcu)" autocomplete="off">
             <button class="btn-submit" onclick="unlockItem()">Unlock & Access</button>
@@ -132,7 +185,7 @@
         <!-- Unlocked Screen -->
         <div id="unlockedSection">
             <h1 class="app-title">{{ item.name }}</h1>
-            <p class="subtitle">Access verified. Ready for installation/download.</p>
+            <p class="subtitle" style="color: #34d399; font-weight: 600;">✓ Resource Unlocked & Verified</p>
             
             <div id="mediaPreview" class="preview-container" style="display: none;"></div>
 
@@ -179,6 +232,19 @@
                 return data;
             })
             .then(data => {
+                // Animate Logo Unlock State
+                const logoImg = document.getElementById('displayLogo');
+                const lockBadge = document.getElementById('lockStatusIcon');
+                if (logoImg) {
+                    logoImg.classList.remove('locked-logo');
+                    logoImg.classList.add('unlocked-logo');
+                }
+                if (lockBadge) {
+                    lockBadge.style.background = "#10b981";
+                    // Unlocked checkmark icon
+                    lockBadge.innerHTML = `<svg viewBox="0 0 24 24" style="width: 18px; height: 18px; fill: #fff;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+                }
+
                 document.getElementById('lockedSection').style.display = 'none';
                 document.getElementById('unlockedSection').style.display = 'block';
 
