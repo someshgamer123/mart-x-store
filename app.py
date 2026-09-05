@@ -119,11 +119,9 @@ def verify_secret():
     if not secret_hash:
         return jsonify({'success': False, 'message': 'Secret key not configured.'}), 401
 
-    # STRICT CHECK: Only the stored hashed secret key works
     if not check_password_hash(secret_hash, secret_code):
         return jsonify({'success': False, 'message': 'Invalid Secret Access Key.'}), 401
 
-    # Check device auto-login
     saved_tokens = admin.get('saved_device_tokens', [])
     if device_token and device_token in saved_tokens:
         session['admin_logged_in'] = True
@@ -156,7 +154,6 @@ def login_credentials():
     if not secret_hash or not check_password_hash(secret_hash, secret_code):
         return jsonify({'success': False, 'message': 'Secret verification expired or invalid.'}), 401
 
-    # STRICT USERNAME & PASSWORD VERIFICATION
     if admin.get('username') != username or not check_password_hash(admin.get('password_hash', ''), password):
         return jsonify({'success': False, 'message': 'Incorrect username or password.'}), 401
 
@@ -210,7 +207,6 @@ def update_settings():
     if new_secret_code:
         if len(new_secret_code) < 4:
             return jsonify({'success': False, 'message': 'Secret code must be at least 4 digits.'}), 400
-        # STRICTLY updates the hash so old secret keys stop working immediately
         updates['secret_code_hash'] = generate_password_hash(new_secret_code)
 
     if not updates:
@@ -235,6 +231,7 @@ def admin_dashboard():
         item_display.append({
             'id': str_id,
             'name': item.get('name', 'Untitled'),
+            'logo_url': item.get('logo_url', ''),
             'item_type': item['item_type'],
             'file_size': item.get('file_size', 0),
             'total_links': total_links,
@@ -258,6 +255,7 @@ def admin_dashboard():
 def upload_item():
     upload_type = request.form.get('upload_type')
     custom_display_name = request.form.get('display_name', '').strip()
+    logo_url = request.form.get('logo_url', '').strip()
     
     if upload_type == 'file':
         if 'file' not in request.files:
@@ -274,13 +272,12 @@ def upload_item():
         file.save(save_path)
         
         file_size = os.path.getsize(save_path)
-        
-        # If user gave a custom app/file name, use that; otherwise use original name
         display_name = custom_display_name if custom_display_name else orig_name
         
         item_doc = {
             'item_type': 'file',
             'name': display_name,
+            'logo_url': logo_url,
             'file_extension': ext,
             'file_path': saved_filename,
             'file_size': file_size,
@@ -298,6 +295,7 @@ def upload_item():
         item_doc = {
             'item_type': 'link',
             'name': display_name,
+            'logo_url': logo_url,
             'external_url': url,
             'file_size': 0,
             'created_at': datetime.utcnow()
@@ -352,11 +350,12 @@ def recreate_link(item_id):
     
     return jsonify({
         'success': True,
+        'item_id': str(item_id),
         'link_code': new_code,
         'password': new_pass,
         'total_links': total_links,
         'full_link': f"{request.host_url}v/{new_code}",
-        'message': 'New link generated. Previous links still active.'
+        'message': 'New link & password created! (Old links still work 100%)'
     })
 
 @app.route('/admin/delete-file/<item_id>', methods=['POST'])
@@ -416,7 +415,6 @@ def verify_password():
         
     session[f"auth_{link_code}"] = True
     
-    # Get mime type
     stored_path = item.get('file_path', '')
     mime_type, _ = mimetypes.guess_type(stored_path)
     
@@ -424,6 +422,7 @@ def verify_password():
         'success': True,
         'item_type': item['item_type'],
         'name': item['name'],
+        'logo_url': item.get('logo_url', ''),
         'file_size': item['file_size'],
         'external_url': item.get('external_url'),
         'mime_type': mime_type or 'application/octet-stream',
@@ -446,7 +445,6 @@ def download_item(link_code):
     if item['item_type'] == 'link':
         return redirect(item['external_url'])
         
-    # Set the download file name to custom display name + original extension
     ext = item.get('file_extension', '')
     download_filename = item['name']
     if ext and not download_filename.endswith(ext):
