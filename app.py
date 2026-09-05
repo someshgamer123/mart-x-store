@@ -1,4 +1,5 @@
 import os
+import time
 import random
 import string
 import mimetypes
@@ -8,7 +9,7 @@ from bson import ObjectId
 from dotenv import load_dotenv
 from flask import (
     Flask, request, render_template, redirect, url_for,
-    session, jsonify, send_from_directory, abort
+    session, jsonify, abort, Response, stream_with_context
 )
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -21,7 +22,7 @@ app.secret_key = os.getenv('SECRET_KEY', os.urandom(32))
 
 SITE_NAME = "Mart X Store"
 MAX_DOWNLOAD_LIMIT = 3
-DEFAULT_STORE_REDIRECT = "https://t.me/"  # Default redirect if no custom purchase URL provided
+DEFAULT_STORE_REDIRECT = "https://t.me/"
 
 # Upload Configuration (Up to 350 MB to safely support 300 MB files)
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -44,7 +45,7 @@ links_col.create_index([('link_code', ASCENDING)], unique=True)
 links_col.create_index([('item_id', ASCENDING)])
 items_col.create_index([('created_at', DESCENDING)])
 
-# Default Admin Init (If completely empty database)
+# Default Admin Init
 default_admin = admins_col.find_one({})
 if not default_admin:
     default_pw_hash = generate_password_hash('admin123')
@@ -152,7 +153,7 @@ def login_credentials():
 
     secret_hash = admin.get('secret_code_hash')
     if not secret_hash or not check_password_hash(secret_hash, secret_code):
-        return jsonify({'success': False, 'message': 'Secret verification expired or invalid.'}), 401
+        return jsonify({'success': False, 'message': 'Secret verification expired.'}), 401
 
     if admin.get('username') != username or not check_password_hash(admin.get('password_hash', ''), password):
         return jsonify({'success': False, 'message': 'Incorrect username or password.'}), 401
@@ -219,7 +220,7 @@ def update_settings():
     admins_col.update_one({'_id': admin['_id']}, {'$set': updates})
     return jsonify({'success': True, 'message': 'Settings updated successfully!'})
 
-# ---------------- Admin Dashboard & Uploads ---------------- #
+# ---------------- Admin Dashboard, Uploads & Edit Item ---------------- #
 
 @app.route('/admin')
 @login_required
@@ -232,13 +233,14 @@ def admin_dashboard():
         total_links = links_col.count_documents({'item_id': item['_id']})
         latest_link = links_col.find_one({'item_id': item['_id']}, sort=[('created_at', DESCENDING)])
         
-        # Download count for latest link (defaults to 0 for old records)
         downloads_used = latest_link.get('download_count', 0) if latest_link else 0
         
         item_display.append({
             'id': str_id,
             'name': item.get('name', 'Untitled'),
             'logo_url': item.get('logo_url', ''),
+            'redirect_url': item.get('redirect_url', ''),
+            'threshold_mb': item.get('threshold_mb', 1.0),
             'item_type': item['item_type'],
             'file_size': item.get('file_size', 0),
             'total_links': total_links,
@@ -269,6 +271,15 @@ def upload_item():
     logo_url = request.form.get('logo_url', '').strip()
     redirect_url = request.form.get('redirect_url', '').strip()
     
+    # Download Threshold in MB (default: 1.0 MB)
+    try:
+        threshold_mb = float(request.form.get('threshold_mb', 1.0))
+    except (ValueError, TypeError):
+        threshold_mb = 1.0
+        
+    if threshold_mb < 0.01:
+        threshold_mb = 0.01
+    
     if upload_type == 'file':
         if 'file' not in request.files:
             return jsonify({'success': False, 'message': 'Please select a file.'}), 400
@@ -291,6 +302,7 @@ def upload_item():
             'name': display_name,
             'logo_url': logo_url,
             'redirect_url': redirect_url,
+            'threshold_mb': threshold_mb,
             'file_extension': ext,
             'file_path': saved_filename,
             'file_size': file_size,
@@ -310,6 +322,7 @@ def upload_item():
             'name': display_name,
             'logo_url': logo_url,
             'redirect_url': redirect_url,
+            'threshold_mb': threshold_mb,
             'external_url': url,
             'file_size': 0,
             'created_at': datetime.utcnow()
@@ -326,7 +339,7 @@ def upload_item():
         'item_id': item_id,
         'link_code': link_code,
         'password': custom_pass,
-        'download_count': 0,  # Starts at 0
+        'download_count': 0,
         'created_at': datetime.utcnow()
     })
     
@@ -338,6 +351,43 @@ def upload_item():
         'password': custom_pass,
         'full_link': f"{request.host_url}v/{link_code}"
     })
+
+# ---------------- EDIT ITEM ROUTE ---------------- #
+@app.route('/admin/edit-item/<item_id>', methods=['POST'])
+@login_required
+def edit_item(item_id):
+    try:
+        obj_id = ObjectId(item_id)
+    except Exception:
+        return jsonify({'success': False, 'message': 'Invalid ID.'}), 400
+
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    logo_url = data.get('logo_url', '').strip()
+    redirect_url = data.get('redirect_url', '').strip()
+    
+    try:
+        threshold_mb = float(data.get('threshold_mb', 1.0))
+    except (ValueError, TypeError):
+        threshold_mb = 1.0
+        
+    if threshold_mb < 0.01:
+        threshold_mb = 0.01
+
+    if not name:
+        return jsonify({'success': False, 'message': 'Name cannot be empty.'}), 400
+
+    items_col.update_one(
+        {'_id': obj_id},
+        {'$set': {
+            'name': name,
+            'logo_url': logo_url,
+            'redirect_url': redirect_url,
+            'threshold_mb': threshold_mb
+        }}
+    )
+
+    return jsonify({'success': True, 'message': 'File details updated successfully!'})
 
 @app.route('/admin/recreate-link/<item_id>', methods=['POST'])
 @login_required
@@ -354,7 +404,6 @@ def recreate_link(item_id):
     new_code = generate_unique_link_code()
     new_pass = generate_custom_password()
     
-    # New link initialized with fresh 0 download count
     links_col.insert_one({
         'item_id': obj_id,
         'link_code': new_code,
@@ -412,11 +461,9 @@ def view_share_page(link_code):
         abort(404)
         
     admin = admins_col.find_one({})
-    # Determine the redirect link for purchasing new key
     fallback_redirect = admin.get('default_redirect_url', DEFAULT_STORE_REDIRECT) if admin else DEFAULT_STORE_REDIRECT
     buy_redirect = item.get('redirect_url') or fallback_redirect
     
-    # Get current download count (safely defaults to 0 for all previous links)
     download_count = link.get('download_count', 0)
     is_expired = download_count >= MAX_DOWNLOAD_LIMIT
     
@@ -449,7 +496,6 @@ def verify_password():
     fallback_redirect = admin.get('default_redirect_url', DEFAULT_STORE_REDIRECT) if admin else DEFAULT_STORE_REDIRECT
     buy_redirect = item.get('redirect_url') or fallback_redirect
 
-    # 1. CHECK IF DOWNLOAD LIMIT IS ALREADY REACHED
     download_count = link.get('download_count', 0)
     if download_count >= MAX_DOWNLOAD_LIMIT:
         return jsonify({
@@ -459,7 +505,6 @@ def verify_password():
             'message': f'Access Denied: Download limit reached ({MAX_DOWNLOAD_LIMIT}/{MAX_DOWNLOAD_LIMIT} used).'
         }), 403
 
-    # 2. VERIFY PASSWORD
     if link['password'] != entered_password:
         return jsonify({'success': False, 'message': 'Incorrect password key. Access denied.'}), 401
     
@@ -467,7 +512,6 @@ def verify_password():
     
     stored_path = item.get('file_path', '')
     mime_type, _ = mimetypes.guess_type(stored_path)
-    
     remaining_downloads = max(0, MAX_DOWNLOAD_LIMIT - download_count)
     
     return jsonify({
@@ -484,6 +528,7 @@ def verify_password():
         'download_url': url_for('download_item', link_code=link_code)
     })
 
+# ---------------- DOWNLOAD STREAM WITH ACCURATE THRESHOLD TRACKING ---------------- #
 @app.route('/download/<link_code>')
 def download_item(link_code):
     if not session.get(f"auth_{link_code}"):
@@ -493,7 +538,6 @@ def download_item(link_code):
     if not link:
         abort(404)
         
-    # Check limit again on actual download request
     download_count = link.get('download_count', 0)
     if download_count >= MAX_DOWNLOAD_LIMIT:
         item = items_col.find_one({'_id': link['item_id']})
@@ -504,24 +548,63 @@ def download_item(link_code):
     item = items_col.find_one({'_id': link['item_id']})
     if not item:
         abort(404)
-        
-    # INCREMENT DOWNLOAD COUNT STRICTLY BY 1 IN DATABASE
-    links_col.update_one({'_id': link['_id']}, {'$inc': {'download_count': 1}})
 
     if item['item_type'] == 'link':
+        # Links count when clicked directly
+        links_col.update_one({'_id': link['_id']}, {'$inc': {'download_count': 1}})
         return redirect(item['external_url'])
-        
+
+    disk_path = os.path.join(app.config['UPLOAD_FOLDER'], item['file_path'])
+    if not os.path.exists(disk_path):
+        abort(404)
+
+    total_file_size = os.path.getsize(disk_path)
     ext = item.get('file_extension', '')
     download_filename = item['name']
     if ext and not download_filename.endswith(ext):
         download_filename = f"{download_filename}{ext}"
 
-    return send_from_directory(
-        app.config['UPLOAD_FOLDER'],
-        item['file_path'],
-        as_attachment=True,
-        download_name=download_filename
+    # Calculate threshold in bytes (from Admin MB setting)
+    threshold_mb = float(item.get('threshold_mb', 1.0))
+    threshold_bytes = int(threshold_mb * 1024 * 1024)
+    
+    # If the total file is smaller than threshold, trigger count at 50% of file size
+    if threshold_bytes > total_file_size:
+        threshold_bytes = max(1024, int(total_file_size * 0.5))
+
+    link_id = link['_id']
+    cooldown_key = f"last_count_{link_code}"
+
+    # Stream generator with exact MB threshold detection
+    def stream_file_with_threshold():
+        bytes_sent = 0
+        threshold_triggered = False
+        with open(disk_path, 'rb') as f:
+            while True:
+                chunk = f.read(128 * 1024)  # 128 KB chunks
+                if not chunk:
+                    break
+                bytes_sent += len(chunk)
+
+                # TRIGGER COUNT ONLY WHEN THRESHOLD MB IS REACHED IN BROWSER
+                if not threshold_triggered and bytes_sent >= threshold_bytes:
+                    now = time.time()
+                    last_time = session.get(cooldown_key, 0)
+                    # 15s Cooldown prevents mobile browsers/download managers multi-request false count
+                    if (now - last_time) > 15:
+                        links_col.update_one({'_id': link_id}, {'$inc': {'download_count': 1}})
+                        session[cooldown_key] = now
+                    threshold_triggered = True
+
+                yield chunk
+
+    response = Response(
+        stream_with_context(stream_file_with_threshold()),
+        mimetype='application/octet-stream'
     )
+    response.headers['Content-Disposition'] = f'attachment; filename="{download_filename}"'
+    response.headers['Content-Length'] = str(total_file_size)
+    return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
