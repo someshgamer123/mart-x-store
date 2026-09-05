@@ -41,7 +41,7 @@
         }
         .input-styled:focus { border-color: #38bdf8; }
 
-        .upload-area { border: 2px dashed #1e293b; border-radius: 12px; padding: 30px 16px; text-align: center; cursor: pointer; background: rgba(15, 23, 42, 0.3); margin-bottom: 12px; }
+        .upload-area { border: 2px dashed #1e293b; border-radius: 12px; padding: 26px 16px; text-align: center; cursor: pointer; background: rgba(15, 23, 42, 0.3); margin-bottom: 12px; }
         .upload-area:hover { border-color: #38bdf8; }
 
         .progress-container { display: none; margin: 16px 0; }
@@ -50,7 +50,10 @@
         .progress-text { display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; margin-top: 6px; }
         .success-badge { display: none; color: #34d399; font-weight: 700; font-size: 13px; margin-top: 8px; text-align: center; }
 
-        /* Responsive Table & Card Views */
+        /* Item Row with Mini Logo */
+        .item-name-box { display: flex; align-items: center; gap: 10px; }
+        .item-logo-thumb { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; background: #1e293b; border: 1px solid #334155; flex-shrink: 0; }
+
         .desktop-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         .desktop-table th, .desktop-table td { text-align: left; padding: 14px; border-bottom: 1px solid #1e293b; font-size: 13px; }
         .desktop-table th { color: #94a3b8; font-weight: 600; background: #080c18; }
@@ -73,13 +76,13 @@
         }
         .link-pass { color: #38bdf8; font-weight: 700; }
 
-        /* Mobile Card Style (Phones) */
+        /* Mobile Cards */
         .mobile-item-card { display: none; background: #060913; border: 1px solid #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
-        .mobile-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .mobile-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .mobile-card-title { font-weight: 700; font-size: 15px; color: #fff; word-break: break-word; }
         .mobile-link-info { background: #0b0f1d; border: 1px solid #1e293b; border-radius: 8px; padding: 10px; margin-bottom: 12px; font-family: monospace; font-size: 12px; }
         .mobile-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-        .mobile-card-actions .btn { flex: 1; min-width: 100px; }
+        .mobile-card-actions .btn { flex: 1; min-width: 90px; }
 
         @media (max-width: 768px) {
             .desktop-table { display: none; }
@@ -89,7 +92,6 @@
             .header-actions .btn { flex: 1; }
         }
 
-        /* Modal */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); align-items: center; justify-content: center; z-index: 60; padding: 16px; }
         .modal { background: #0c1222; border: 1px solid #1e293b; border-radius: 20px; padding: 24px; width: 100%; max-width: 440px; }
         .modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; color: #fff; }
@@ -120,13 +122,14 @@
                 <button class="tab-btn" id="tabLinkBtn" onclick="switchTab('link')">Protected URL Link</button>
             </div>
 
-            <!-- File Section -->
+            <!-- File Upload Form -->
             <div id="fileUploadSection">
-                <input type="text" id="fileCustomName" class="input-styled" placeholder="App / File Display Name (e.g. GTA V Mobile, VIP Hack)">
+                <input type="text" id="fileCustomName" class="input-styled" placeholder="App / File Display Name (e.g. GTA V Mobile)">
+                <input type="url" id="fileLogoUrl" class="input-styled" placeholder="App Logo PNG Link (Optional: https://example.com/logo.png)">
                 
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(this)">
-                    <p id="fileLabel" style="font-size: 13.5px; color: #cbd5e1;">Tap to select file from phone / computer</p>
+                    <p id="fileLabel" style="font-size: 13.5px; color: #cbd5e1;">Tap to select file from phone or PC</p>
                 </div>
 
                 <div class="progress-container" id="progressContainer">
@@ -138,24 +141,25 @@
                 <button class="btn btn-primary" id="uploadBtn" style="width: 100%; padding: 14px;" onclick="startFileUpload()">Upload & Generate Link</button>
             </div>
 
-            <!-- Link Section -->
+            <!-- Link Upload Form -->
             <div id="linkUploadSection" style="display: none;">
-                <input type="text" id="linkName" class="input-styled" placeholder="App / Resource Name (e.g. Premium Tool Access)">
+                <input type="text" id="linkName" class="input-styled" placeholder="Resource Name (e.g. VIP Video Link)">
+                <input type="url" id="linkLogoUrl" class="input-styled" placeholder="Logo PNG Link (Optional)">
                 <input type="url" id="linkUrl" class="input-styled" placeholder="https://target-url.com">
                 <button class="btn btn-primary" style="width: 100%; padding: 14px;" onclick="submitLink()">Save & Generate Link</button>
             </div>
         </div>
 
-        <!-- Items Display -->
+        <!-- Assets Inventory -->
         <div class="card">
-            <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Uploaded Assets</h2>
-            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Only latest link & password shown. All older links work 100%.</p>
+            <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Active Assets</h2>
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Recreating a link updates the display below immediately. All previous links remain 100% functional.</p>
 
-            <!-- Desktop View Table -->
+            <!-- Desktop Table -->
             <table class="desktop-table">
                 <thead>
                     <tr>
-                        <th>Resource Name</th>
+                        <th>Resource</th>
                         <th>Type</th>
                         <th>Active Link & Password</th>
                         <th>Actions</th>
@@ -163,16 +167,23 @@
                 </thead>
                 <tbody>
                     {% for item in items %}
-                    <tr id="item-row-{{ item.id }}">
-                        <td style="font-weight: 600; color: #fff;">{{ item.name }}</td>
+                    <tr id="item-row-{{ item.id }}" data-link="{{ host_url }}v/{{ item.latest_link_code }}" data-pass="{{ item.latest_password }}">
+                        <td>
+                            <div class="item-name-box">
+                                {% if item.logo_url %}
+                                <img src="{{ item.logo_url }}" class="item-logo-thumb" alt="Logo" onerror="this.style.display='none'">
+                                {% endif %}
+                                <span style="font-weight: 600; color: #fff;">{{ item.name }}</span>
+                            </div>
+                        </td>
                         <td><span class="badge {{ 'badge-file' if item.item_type == 'file' else 'badge-link' }}">{{ item.item_type|upper }}</span></td>
-                        <td style="min-width: 400px;">
+                        <td style="min-width: 380px;">
                             <div class="single-link-box" id="link-box-{{ item.id }}">
                                 <div>
                                     <span id="code-txt-{{ item.id }}">/v/{{ item.latest_link_code }}</span> | 
                                     Pass: <span class="link-pass" id="pass-txt-{{ item.id }}">{{ item.latest_password }}</span>
                                 </div>
-                                <button class="btn btn-secondary btn-sm" onclick="copyCreds('{{ host_url }}v/{{ item.latest_link_code }}', '{{ item.latest_password }}')">Copy</button>
+                                <button class="btn btn-secondary btn-sm" id="d-copy-btn-{{ item.id }}" onclick="copyRowCreds('{{ item.id }}')">Copy</button>
                             </div>
                         </td>
                         <td>
@@ -188,12 +199,17 @@
                 </tbody>
             </table>
 
-            <!-- Mobile View Cards (Optimized for Phones) -->
+            <!-- Mobile Cards (Phones) -->
             <div class="mobile-items-list">
                 {% for item in items %}
-                <div class="mobile-item-card" id="mobile-card-{{ item.id }}">
+                <div class="mobile-item-card" id="mobile-card-{{ item.id }}" data-link="{{ host_url }}v/{{ item.latest_link_code }}" data-pass="{{ item.latest_password }}">
                     <div class="mobile-card-header">
-                        <div class="mobile-card-title">{{ item.name }}</div>
+                        <div class="item-name-box">
+                            {% if item.logo_url %}
+                            <img src="{{ item.logo_url }}" class="item-logo-thumb" alt="Logo" onerror="this.style.display='none'">
+                            {% endif %}
+                            <div class="mobile-card-title">{{ item.name }}</div>
+                        </div>
                         <span class="badge {{ 'badge-file' if item.item_type == 'file' else 'badge-link' }}">{{ item.item_type|upper }}</span>
                     </div>
 
@@ -203,13 +219,11 @@
                     </div>
 
                     <div class="mobile-card-actions">
-                        <button class="btn btn-secondary btn-sm" id="m-copy-btn-{{ item.id }}" onclick="copyCreds('{{ host_url }}v/{{ item.latest_link_code }}', '{{ item.latest_password }}')">Copy Link</button>
+                        <button class="btn btn-secondary btn-sm" id="m-copy-btn-{{ item.id }}" onclick="copyRowCreds('{{ item.id }}')">Copy Link</button>
                         <button class="btn btn-secondary btn-sm" onclick="recreateLink('{{ item.id }}')">+ Recreate</button>
                         <button class="btn btn-danger btn-sm" onclick="confirmDeleteItem('{{ item.id }}')">Delete</button>
                     </div>
                 </div>
-                {% else %}
-                <p style="text-align: center; color: #64748b; padding: 20px;" class="mobile-item-card">No assets uploaded yet.</p>
                 {% endfor %}
             </div>
         </div>
@@ -270,6 +284,42 @@
             setTimeout(() => { t.style.display = 'none'; }, 3500);
         }
 
+        // UNIVERSAL RELIABLE CLIPBOARD ENGINE (Works on Android, iOS, Windows, Mac)
+        function copyTextUniversal(textToCopy) {
+            if (navigator.clipboard && window.isSecureContext) {
+                return navigator.clipboard.writeText(textToCopy);
+            } else {
+                const textArea = document.createElement("textarea");
+                textArea.value = textToCopy;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                textArea.style.top = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                return new Promise((res, rej) => {
+                    document.execCommand('copy') ? res() : rej();
+                    textArea.remove();
+                });
+            }
+        }
+
+        function copyRowCreds(itemId) {
+            // Always reads from the live updated data attribute
+            const row = document.getElementById(`item-row-${itemId}`) || document.getElementById(`mobile-card-${itemId}`);
+            if (!row) return;
+
+            const link = row.getAttribute('data-link');
+            const password = row.getAttribute('data-pass');
+            const fullText = `Link: ${link}\nPassword: ${password}`;
+
+            copyTextUniversal(fullText).then(() => {
+                showToast('Copied Link & Password to clipboard!', 'success');
+            }).catch(() => {
+                showToast('Failed to copy. Please allow clipboard access.', 'error');
+            });
+        }
+
         function switchTab(type) {
             document.getElementById('fileUploadSection').style.display = type === 'file' ? 'block' : 'none';
             document.getElementById('linkUploadSection').style.display = type === 'link' ? 'block' : 'none';
@@ -284,7 +334,6 @@
                 const sizeMB = (selectedFile.size / (1024 * 1024)).toFixed(2);
                 document.getElementById('fileLabel').innerText = `${selectedFile.name} (${sizeMB} MB)`;
                 
-                // If custom name is empty, auto-populate clean name without extension
                 const nameInput = document.getElementById('fileCustomName');
                 if (!nameInput.value.trim()) {
                     nameInput.value = selectedFile.name.replace(/\.[^/.]+$/, "");
@@ -299,10 +348,13 @@
             }
 
             const customName = document.getElementById('fileCustomName').value.trim();
+            const logoUrl = document.getElementById('fileLogoUrl').value.trim();
+
             const formData = new FormData();
             formData.append('upload_type', 'file');
             formData.append('file', selectedFile);
             formData.append('display_name', customName);
+            formData.append('logo_url', logoUrl);
 
             const xhr = new XMLHttpRequest();
             const progressContainer = document.getElementById('progressContainer');
@@ -330,7 +382,7 @@
                     showToast('Upload completed successfully!', 'success');
                     setTimeout(() => location.reload(), 1200);
                 } else {
-                    showToast('Upload error. File may exceed limit.', 'error');
+                    showToast('Upload failed. Check file size limits.', 'error');
                 }
             };
 
@@ -346,12 +398,14 @@
         function submitLink() {
             const url = document.getElementById('linkUrl').value.trim();
             const name = document.getElementById('linkName').value.trim();
-            if (!url) { showToast('URL is required.', 'error'); return; }
+            const logoUrl = document.getElementById('linkLogoUrl').value.trim();
+            if (!url) { showToast('Destination URL is required.', 'error'); return; }
 
             const fd = new FormData();
             fd.append('upload_type', 'link');
             fd.append('url', url);
             fd.append('display_name', name);
+            fd.append('logo_url', logoUrl);
 
             fetch('/admin/upload', { method: 'POST', body: fd })
                 .then(r => r.json())
@@ -365,29 +419,41 @@
                 });
         }
 
+        // 100% SYNCHRONIZED RECREATE LINK FUNCTION (Both PC & Phone Updated Instantly)
         function recreateLink(itemId) {
             fetch(`/admin/recreate-link/${itemId}`, { method: 'POST' })
                 .then(r => r.json())
                 .then(res => {
                     if (res.success) {
-                        // Update desktop table
-                        const codeElem = document.getElementById(`code-txt-${itemId}`);
-                        const passElem = document.getElementById(`pass-txt-${itemId}`);
-                        if (codeElem) codeElem.innerText = `/v/${res.link_code}`;
-                        if (passElem) passElem.innerText = res.password;
+                        // 1. Update Desktop Row Data & Elements
+                        const dRow = document.getElementById(`item-row-${itemId}`);
+                        if (dRow) {
+                            dRow.setAttribute('data-link', res.full_link);
+                            dRow.setAttribute('data-pass', res.password);
+                        }
+                        const dCode = document.getElementById(`code-txt-${itemId}`);
+                        const dPass = document.getElementById(`pass-txt-${itemId}`);
+                        if (dCode) dCode.innerText = `/v/${res.link_code}`;
+                        if (dPass) dPass.innerText = res.password;
 
-                        // Update mobile card
+                        // 2. Update Mobile Card Data & Elements
+                        const mCard = document.getElementById(`mobile-card-${itemId}`);
+                        if (mCard) {
+                            mCard.setAttribute('data-link', res.full_link);
+                            mCard.setAttribute('data-pass', res.password);
+                        }
                         const mCode = document.getElementById(`m-code-txt-${itemId}`);
                         const mPass = document.getElementById(`m-pass-txt-${itemId}`);
-                        const mBtn = document.getElementById(`m-copy-btn-${itemId}`);
                         if (mCode) mCode.innerText = `/v/${res.link_code}`;
                         if (mPass) mPass.innerText = res.password;
-                        if (mBtn) mBtn.setAttribute('onclick', `copyCreds('${res.full_link}', '${res.password}')`);
 
-                        showToast('New link & pass generated! (Old links still active)', 'success');
+                        showToast('New link & password created! Press Copy to copy new link.', 'success');
                     } else {
                         showToast(res.message, 'error');
                     }
+                })
+                .catch(() => {
+                    showToast('Failed to recreate link. Server error.', 'error');
                 });
         }
 
@@ -408,19 +474,12 @@
                         const mCard = document.getElementById(`mobile-card-${pendingDeleteId}`);
                         if (dRow) dRow.remove();
                         if (mCard) mCard.remove();
-                        showToast('File and links permanently deleted.', 'success');
+                        showToast('Resource permanently deleted.', 'success');
                     } else {
                         showToast(res.message, 'error');
                     }
                 });
         });
-
-        function copyCreds(link, password) {
-            const text = `Link: ${link}\nPassword: ${password}`;
-            navigator.clipboard.writeText(text).then(() => {
-                showToast('Link & Password copied to clipboard!', 'success');
-            });
-        }
 
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
