@@ -42,7 +42,6 @@
             border-radius: 999px;
         }
 
-        /* App Logo with Dynamic Lock Overlay */
         .logo-container {
             position: relative;
             width: 84px;
@@ -127,7 +126,6 @@
         .btn-submit:active { transform: scale(0.98); }
         .error-msg { color: #f87171; font-size: 13px; margin-top: 12px; display: none; font-weight: 600; }
 
-        /* Limit Counter Badge */
         .limit-pill {
             display: inline-flex;
             align-items: center;
@@ -142,7 +140,6 @@
             margin-bottom: 16px;
         }
 
-        /* Unlocked Section */
         #unlockedSection { display: none; }
         .preview-container { margin: 18px 0; border-radius: 14px; overflow: hidden; background: #000; max-height: 220px; display: flex; align-items: center; justify-content: center; border: 1px solid #1e293b; }
         .preview-container img, .preview-container video { width: 100%; max-height: 220px; object-fit: contain; }
@@ -163,7 +160,7 @@
         }
         .download-btn:active { transform: scale(0.98); }
 
-        /* ACCESS DENIED STATE */
+        /* ACCESS DENIED */
         #deniedSection { display: none; }
         .denied-card {
             background: rgba(239, 68, 68, 0.06);
@@ -189,25 +186,20 @@
             text-decoration: none;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(217, 119, 6, 0.35);
-            transition: 0.2s;
         }
-        .btn-new-key:active { transform: scale(0.98); }
     </style>
 </head>
 <body>
     <div class="portal-card">
         <div class="brand-badge">{{ site_name }}</div>
 
-        <!-- Dynamic Logo Container -->
         <div class="logo-container" id="logoBox">
             {% if item.logo_url %}
             <img src="{{ item.logo_url }}" id="displayLogo" class="app-logo-img {{ 'denied-logo' if is_expired else 'locked-logo' }}" alt="Logo">
             <div class="lock-badge-icon" id="lockStatusIcon" style="{{ 'background:#dc2626;' if is_expired else '' }}">
                 {% if is_expired %}
-                <!-- Denied Icon -->
                 <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                 {% else %}
-                <!-- Locked SVG -->
                 <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
                 {% endif %}
             </div>
@@ -219,12 +211,12 @@
         </div>
 
         {% if is_expired %}
-        <!-- 1. ALREADY EXPIRED STATE (Directly Shown if 3/3 Used) -->
+        <!-- 1. EXPIRED ACCESS STATE -->
         <div id="initialDeniedSection">
             <h1 class="app-title">{{ item.name }}</h1>
             <div class="denied-card">
                 <div class="denied-title">Access Denied</div>
-                <div class="denied-desc">The download limit for this access key has expired ({{ max_limit }}/{{ max_limit }} downloads used). Each key can only be downloaded {{ max_limit }} times to prevent key sharing.</div>
+                <div class="denied-desc">The download limit for this access key has expired ({{ max_limit }}/{{ max_limit }} downloads used). Each key is limited to {{ max_limit }} downloads.</div>
             </div>
             <a href="{{ buy_redirect }}" class="btn-new-key" target="_blank">
                 <span>Get a New Access Key</span>
@@ -233,7 +225,7 @@
         </div>
         {% else %}
 
-        <!-- 2. NORMAL PASSWORD PROMPT (If downloads remaining < 3) -->
+        <!-- 2. NORMAL PASSWORD SCREEN -->
         <div id="lockedSection">
             <h1 class="app-title">{{ item.name }}</h1>
             <p class="subtitle">Enter the password key to unlock and download this asset.</p>
@@ -255,11 +247,11 @@
                 <div id="fileMeta" style="color: #94a3b8; font-size: 12px;"></div>
             </div>
 
-            <!-- Single Download Button -->
-            <a id="actionDownloadBtn" class="download-btn" href="#" target="_blank" onclick="handleDownloadClick()">Download File</a>
+            <!-- Single Download Button (Smooth download without auto-reload) -->
+            <a id="actionDownloadBtn" class="download-btn" href="#">Download File</a>
         </div>
 
-        <!-- 4. DYNAMIC ACCESS DENIED (If limit hits during unlock) -->
+        <!-- 4. ACCESS DENIED WHEN LIMIT EXCEEDED -->
         <div id="deniedSection">
             <h1 class="app-title">{{ item.name }}</h1>
             <div class="denied-card">
@@ -304,7 +296,6 @@
             .then(async res => {
                 const data = await res.json();
                 if (!res.ok) {
-                    // IF LIMIT EXCEEDED
                     if (data.limit_exceeded) {
                         showDeniedScreen(data.message, data.buy_redirect);
                         return;
@@ -316,7 +307,6 @@
             .then(data => {
                 if (!data) return;
 
-                // Animate Unlocked Logo
                 const logoImg = document.getElementById('displayLogo');
                 const lockBadge = document.getElementById('lockStatusIcon');
                 if (logoImg) {
@@ -374,7 +364,6 @@
                 if (redirectUrl) document.getElementById('deniedRedirectBtn').href = redirectUrl;
             }
 
-            // Turn logo red
             const logoImg = document.getElementById('displayLogo');
             const lockBadge = document.getElementById('lockStatusIcon');
             if (logoImg) {
@@ -385,13 +374,6 @@
                 lockBadge.style.background = "#dc2626";
                 lockBadge.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>`;
             }
-        }
-
-        function handleDownloadClick() {
-            // Give 1.5s after click, then reload to update download count and lock if 3 reached
-            setTimeout(() => {
-                location.reload();
-            }, 1800);
         }
     </script>
 </body>
