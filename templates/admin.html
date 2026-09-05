@@ -8,7 +8,7 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background: #060913; color: #e2e8f0; padding: 16px; user-select: none; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1240px; margin: 0 auto; }
         
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #1e293b; flex-wrap: wrap; gap: 12px; }
         .brand { font-size: 20px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; }
@@ -19,6 +19,8 @@
         .btn { padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: 0.2s; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
         .btn-primary { background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; }
         .btn-secondary { background: #111827; color: #cbd5e1; border: 1px solid #1e293b; }
+        .btn-edit { background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
+        .btn-edit:hover { background: #0284c7; color: #fff; }
         .btn-danger { background: rgba(220, 38, 38, 0.15); color: #f87171; border: 1px solid rgba(220, 38, 38, 0.3); }
         .btn-danger:hover { background: #dc2626; color: #fff; }
         .btn-sm { padding: 7px 12px; font-size: 12px; border-radius: 8px; }
@@ -60,7 +62,6 @@
         .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
         .badge-file { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
         .badge-link { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-        
         .badge-limit { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
         .badge-exhausted { background: rgba(239, 68, 68, 0.15); color: #f87171; }
 
@@ -84,7 +85,7 @@
         .mobile-card-title { font-weight: 700; font-size: 15px; color: #fff; word-break: break-word; }
         .mobile-link-info { background: #0b0f1d; border: 1px solid #1e293b; border-radius: 8px; padding: 10px; margin-bottom: 12px; font-family: monospace; font-size: 12px; }
         .mobile-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-        .mobile-card-actions .btn { flex: 1; min-width: 90px; }
+        .mobile-card-actions .btn { flex: 1; min-width: 80px; }
 
         @media (max-width: 768px) {
             .desktop-table { display: none; }
@@ -127,12 +128,17 @@
             <!-- File Upload Form -->
             <div id="fileUploadSection">
                 <input type="text" id="fileCustomName" class="input-styled" placeholder="App / File Display Name (e.g. GTA V Mobile)">
-                <input type="url" id="fileLogoUrl" class="input-styled" placeholder="App Logo PNG Link (Optional: https://example.com/logo.png)">
-                <input type="url" id="fileRedirectUrl" class="input-styled" placeholder="Custom 'Get New Key' Redirect Link (Optional: Telegram/Store link)">
+                <input type="url" id="fileLogoUrl" class="input-styled" placeholder="App Logo PNG Link (Optional)">
+                <input type="url" id="fileRedirectUrl" class="input-styled" placeholder="Custom 'Get New Key' Link (Optional: Telegram / Store)">
+                
+                <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+                    <label style="font-size: 12px; color: #94a3b8; white-space: nowrap; font-weight: 600;">Count 1 Download after (MB):</label>
+                    <input type="number" id="fileThreshold" step="0.1" min="0.01" class="input-styled" style="margin-bottom: 0;" value="1.0" title="Download threshold in MB before 1 download is counted. Hidden from users.">
+                </div>
                 
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(this)">
-                    <p id="fileLabel" style="font-size: 13.5px; color: #cbd5e1;">Tap to select file from phone or PC (Limit: 3 Downloads/Key)</p>
+                    <p id="fileLabel" style="font-size: 13.5px; color: #cbd5e1;">Tap to select file from phone or PC (Limit: 3 Downloads)</p>
                 </div>
 
                 <div class="progress-container" id="progressContainer">
@@ -148,7 +154,7 @@
             <div id="linkUploadSection" style="display: none;">
                 <input type="text" id="linkName" class="input-styled" placeholder="Resource Name (e.g. VIP Video Link)">
                 <input type="url" id="linkLogoUrl" class="input-styled" placeholder="Logo PNG Link (Optional)">
-                <input type="url" id="linkRedirectUrl" class="input-styled" placeholder="Custom 'Get New Key' Redirect Link (Optional)">
+                <input type="url" id="linkRedirectUrl" class="input-styled" placeholder="Custom 'Get New Key' Link (Optional)">
                 <input type="url" id="linkUrl" class="input-styled" placeholder="https://target-url.com">
                 <button class="btn btn-primary" style="width: 100%; padding: 14px;" onclick="submitLink()">Save & Generate Link</button>
             </div>
@@ -156,8 +162,8 @@
 
         <!-- Assets Inventory -->
         <div class="card">
-            <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Active Assets (3 Downloads Limit per Key)</h2>
-            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">When download limit reaches 3/3, buyers get Access Denied and a button to buy a new access key.</p>
+            <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Active Assets (3 Downloads Limit)</h2>
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Download limit is counted only when the MB threshold is downloaded. Click 'Edit' to change details anytime.</p>
 
             <!-- Desktop Table -->
             <table class="desktop-table">
@@ -172,7 +178,13 @@
                 </thead>
                 <tbody>
                     {% for item in items %}
-                    <tr id="item-row-{{ item.id }}" data-link="{{ host_url }}v/{{ item.latest_link_code }}" data-pass="{{ item.latest_password }}">
+                    <tr id="item-row-{{ item.id }}" 
+                        data-link="{{ host_url }}v/{{ item.latest_link_code }}" 
+                        data-pass="{{ item.latest_password }}"
+                        data-name="{{ item.name }}"
+                        data-logo="{{ item.logo_url }}"
+                        data-redirect="{{ item.redirect_url }}"
+                        data-threshold="{{ item.threshold_mb }}">
                         <td>
                             <div class="item-name-box">
                                 {% if item.logo_url %}
@@ -198,6 +210,7 @@
                         </td>
                         <td>
                             <div style="display: flex; gap: 6px;">
+                                <button class="btn btn-edit btn-sm" onclick="openEditModal('{{ item.id }}')">Edit File</button>
                                 <button class="btn btn-secondary btn-sm" onclick="recreateLink('{{ item.id }}')">+ Recreate</button>
                                 <button class="btn btn-danger btn-sm" onclick="confirmDeleteItem('{{ item.id }}')">Delete</button>
                             </div>
@@ -209,10 +222,16 @@
                 </tbody>
             </table>
 
-            <!-- Mobile Cards (Phones) -->
+            <!-- Mobile Cards -->
             <div class="mobile-items-list">
                 {% for item in items %}
-                <div class="mobile-item-card" id="mobile-card-{{ item.id }}" data-link="{{ host_url }}v/{{ item.latest_link_code }}" data-pass="{{ item.latest_password }}">
+                <div class="mobile-item-card" id="mobile-card-{{ item.id }}" 
+                     data-link="{{ host_url }}v/{{ item.latest_link_code }}" 
+                     data-pass="{{ item.latest_password }}"
+                     data-name="{{ item.name }}"
+                     data-logo="{{ item.logo_url }}"
+                     data-redirect="{{ item.redirect_url }}"
+                     data-threshold="{{ item.threshold_mb }}">
                     <div class="mobile-card-header">
                         <div class="item-name-box">
                             {% if item.logo_url %}
@@ -235,11 +254,39 @@
 
                     <div class="mobile-card-actions">
                         <button class="btn btn-secondary btn-sm" id="m-copy-btn-{{ item.id }}" onclick="copyRowCreds('{{ item.id }}')">Copy Link</button>
+                        <button class="btn btn-edit btn-sm" onclick="openEditModal('{{ item.id }}')">Edit File</button>
                         <button class="btn btn-secondary btn-sm" onclick="recreateLink('{{ item.id }}')">+ Recreate</button>
                         <button class="btn btn-danger btn-sm" onclick="confirmDeleteItem('{{ item.id }}')">Delete</button>
                     </div>
                 </div>
                 {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit File Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <h3>Edit File Details</h3>
+            <p>Update display name, logo, or download threshold.</p>
+
+            <input type="hidden" id="editItemId">
+
+            <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">APP / FILE NAME</label>
+            <input type="text" id="editName" class="input-styled" placeholder="Display Name">
+
+            <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">LOGO PNG LINK</label>
+            <input type="url" id="editLogo" class="input-styled" placeholder="https://example.com/logo.png">
+
+            <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">CUSTOM 'GET NEW KEY' REDIRECT LINK</label>
+            <input type="url" id="editRedirect" class="input-styled" placeholder="Telegram or Store Link">
+
+            <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">DOWNLOAD TRIGGER THRESHOLD (MB) <span style="color:#64748b;">(Hidden from buyers)</span></label>
+            <input type="number" id="editThreshold" step="0.1" min="0.01" class="input-styled" placeholder="1.0">
+
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
+                <button class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitEditItem()">Save Changes</button>
             </div>
         </div>
     </div>
@@ -366,6 +413,7 @@
             const customName = document.getElementById('fileCustomName').value.trim();
             const logoUrl = document.getElementById('fileLogoUrl').value.trim();
             const redirectUrl = document.getElementById('fileRedirectUrl').value.trim();
+            const thresholdMb = document.getElementById('fileThreshold').value.trim() || '1.0';
 
             const formData = new FormData();
             formData.append('upload_type', 'file');
@@ -373,6 +421,7 @@
             formData.append('display_name', customName);
             formData.append('logo_url', logoUrl);
             formData.append('redirect_url', redirectUrl);
+            formData.append('threshold_mb', thresholdMb);
 
             const xhr = new XMLHttpRequest();
             const progressContainer = document.getElementById('progressContainer');
@@ -426,6 +475,7 @@
             fd.append('display_name', name);
             fd.append('logo_url', logoUrl);
             fd.append('redirect_url', redirectUrl);
+            fd.append('threshold_mb', '1.0');
 
             fetch('/admin/upload', { method: 'POST', body: fd })
                 .then(r => r.json())
@@ -439,12 +489,62 @@
                 });
         }
 
+        // EDIT ITEM MODAL HANDLER
+        function openEditModal(itemId) {
+            const row = document.getElementById(`item-row-${itemId}`) || document.getElementById(`mobile-card-${itemId}`);
+            if (!row) return;
+
+            document.getElementById('editItemId').value = itemId;
+            document.getElementById('editName').value = row.getAttribute('data-name') || '';
+            document.getElementById('editLogo').value = row.getAttribute('data-logo') || '';
+            document.getElementById('editRedirect').value = row.getAttribute('data-redirect') || '';
+            document.getElementById('editThreshold').value = row.getAttribute('data-threshold') || '1.0';
+
+            openModal('editModal');
+        }
+
+        function submitEditItem() {
+            const itemId = document.getElementById('editItemId').value;
+            const name = document.getElementById('editName').value.trim();
+            const logo = document.getElementById('editLogo').value.trim();
+            const redirectUrl = document.getElementById('editRedirect').value.trim();
+            const threshold = document.getElementById('editThreshold').value.trim() || '1.0';
+
+            if (!name) {
+                showToast('Name cannot be empty.', 'error');
+                return;
+            }
+
+            fetch(`/admin/edit-item/${itemId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    logo_url: logo,
+                    redirect_url: redirectUrl,
+                    threshold_mb: threshold
+                })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    showToast(res.message, 'success');
+                    closeModal('editModal');
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    showToast(res.message, 'error');
+                }
+            })
+            .catch(() => {
+                showToast('Failed to update details.', 'error');
+            });
+        }
+
         function recreateLink(itemId) {
             fetch(`/admin/recreate-link/${itemId}`, { method: 'POST' })
                 .then(r => r.json())
                 .then(res => {
                     if (res.success) {
-                        // Update Desktop Row Data & Elements
                         const dRow = document.getElementById(`item-row-${itemId}`);
                         if (dRow) {
                             dRow.setAttribute('data-link', res.full_link);
@@ -460,7 +560,6 @@
                             dLimit.innerText = `Used: 0/${res.max_limit}`;
                         }
 
-                        // Update Mobile Card Data & Elements
                         const mCard = document.getElementById(`mobile-card-${itemId}`);
                         if (mCard) {
                             mCard.setAttribute('data-link', res.full_link);
@@ -482,7 +581,7 @@
                     }
                 })
                 .catch(() => {
-                    showToast('Failed to recreate link. Server error.', 'error');
+                    showToast('Failed to recreate link.', 'error');
                 });
         }
 
