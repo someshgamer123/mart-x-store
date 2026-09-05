@@ -50,7 +50,6 @@
         .progress-text { display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; margin-top: 6px; }
         .success-badge { display: none; color: #34d399; font-weight: 700; font-size: 13px; margin-top: 8px; text-align: center; }
 
-        /* Item Row with Mini Logo */
         .item-name-box { display: flex; align-items: center; gap: 10px; }
         .item-logo-thumb { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; background: #1e293b; border: 1px solid #334155; flex-shrink: 0; }
 
@@ -61,6 +60,9 @@
         .badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
         .badge-file { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
         .badge-link { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        
+        .badge-limit { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+        .badge-exhausted { background: rgba(239, 68, 68, 0.15); color: #f87171; }
 
         .single-link-box {
             background: #060913;
@@ -126,10 +128,11 @@
             <div id="fileUploadSection">
                 <input type="text" id="fileCustomName" class="input-styled" placeholder="App / File Display Name (e.g. GTA V Mobile)">
                 <input type="url" id="fileLogoUrl" class="input-styled" placeholder="App Logo PNG Link (Optional: https://example.com/logo.png)">
+                <input type="url" id="fileRedirectUrl" class="input-styled" placeholder="Custom 'Get New Key' Redirect Link (Optional: Telegram/Store link)">
                 
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                     <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(this)">
-                    <p id="fileLabel" style="font-size: 13.5px; color: #cbd5e1;">Tap to select file from phone or PC</p>
+                    <p id="fileLabel" style="font-size: 13.5px; color: #cbd5e1;">Tap to select file from phone or PC (Limit: 3 Downloads/Key)</p>
                 </div>
 
                 <div class="progress-container" id="progressContainer">
@@ -145,6 +148,7 @@
             <div id="linkUploadSection" style="display: none;">
                 <input type="text" id="linkName" class="input-styled" placeholder="Resource Name (e.g. VIP Video Link)">
                 <input type="url" id="linkLogoUrl" class="input-styled" placeholder="Logo PNG Link (Optional)">
+                <input type="url" id="linkRedirectUrl" class="input-styled" placeholder="Custom 'Get New Key' Redirect Link (Optional)">
                 <input type="url" id="linkUrl" class="input-styled" placeholder="https://target-url.com">
                 <button class="btn btn-primary" style="width: 100%; padding: 14px;" onclick="submitLink()">Save & Generate Link</button>
             </div>
@@ -152,8 +156,8 @@
 
         <!-- Assets Inventory -->
         <div class="card">
-            <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Active Assets</h2>
-            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Recreating a link updates the display below immediately. All previous links remain 100% functional.</p>
+            <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 4px;">Active Assets (3 Downloads Limit per Key)</h2>
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 16px;">When download limit reaches 3/3, buyers get Access Denied and a button to buy a new access key.</p>
 
             <!-- Desktop Table -->
             <table class="desktop-table">
@@ -161,6 +165,7 @@
                     <tr>
                         <th>Resource</th>
                         <th>Type</th>
+                        <th>Download Limit</th>
                         <th>Active Link & Password</th>
                         <th>Actions</th>
                     </tr>
@@ -177,7 +182,12 @@
                             </div>
                         </td>
                         <td><span class="badge {{ 'badge-file' if item.item_type == 'file' else 'badge-link' }}">{{ item.item_type|upper }}</span></td>
-                        <td style="min-width: 380px;">
+                        <td>
+                            <span class="badge {{ 'badge-exhausted' if item.downloads_used >= item.max_limit else 'badge-limit' }}" id="limit-badge-{{ item.id }}">
+                                Used: {{ item.downloads_used }}/{{ item.max_limit }}
+                            </span>
+                        </td>
+                        <td style="min-width: 360px;">
                             <div class="single-link-box" id="link-box-{{ item.id }}">
                                 <div>
                                     <span id="code-txt-{{ item.id }}">/v/{{ item.latest_link_code }}</span> | 
@@ -194,7 +204,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="4" style="text-align: center; color: #64748b; padding: 24px;">No items uploaded.</td></tr>
+                    <tr><td colspan="5" style="text-align: center; color: #64748b; padding: 24px;">No items uploaded.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -210,7 +220,12 @@
                             {% endif %}
                             <div class="mobile-card-title">{{ item.name }}</div>
                         </div>
-                        <span class="badge {{ 'badge-file' if item.item_type == 'file' else 'badge-link' }}">{{ item.item_type|upper }}</span>
+                        <div style="display: flex; gap: 4px;">
+                            <span class="badge {{ 'badge-file' if item.item_type == 'file' else 'badge-link' }}">{{ item.item_type|upper }}</span>
+                            <span class="badge {{ 'badge-exhausted' if item.downloads_used >= item.max_limit else 'badge-limit' }}" id="m-limit-badge-{{ item.id }}">
+                                {{ item.downloads_used }}/{{ item.max_limit }}
+                            </span>
+                        </div>
                     </div>
 
                     <div class="mobile-link-info">
@@ -233,7 +248,10 @@
     <div class="modal-overlay" id="settingsModal">
         <div class="modal">
             <h3>Admin Settings</h3>
-            <p>Update credentials. Leave empty to keep unchanged.</p>
+            <p>Update credentials & default purchase redirect.</p>
+
+            <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">DEFAULT 'GET NEW KEY' REDIRECT URL</label>
+            <input type="url" id="setDefaultRedirect" class="input-styled" value="{{ default_redirect_url }}" placeholder="https://t.me/yourusername">
 
             <label style="font-size: 11px; color: #94a3b8; font-weight: 600;">NEW USERNAME</label>
             <input type="text" id="setNewUser" class="input-styled" placeholder="New username">
@@ -284,7 +302,6 @@
             setTimeout(() => { t.style.display = 'none'; }, 3500);
         }
 
-        // UNIVERSAL RELIABLE CLIPBOARD ENGINE (Works on Android, iOS, Windows, Mac)
         function copyTextUniversal(textToCopy) {
             if (navigator.clipboard && window.isSecureContext) {
                 return navigator.clipboard.writeText(textToCopy);
@@ -305,7 +322,6 @@
         }
 
         function copyRowCreds(itemId) {
-            // Always reads from the live updated data attribute
             const row = document.getElementById(`item-row-${itemId}`) || document.getElementById(`mobile-card-${itemId}`);
             if (!row) return;
 
@@ -349,12 +365,14 @@
 
             const customName = document.getElementById('fileCustomName').value.trim();
             const logoUrl = document.getElementById('fileLogoUrl').value.trim();
+            const redirectUrl = document.getElementById('fileRedirectUrl').value.trim();
 
             const formData = new FormData();
             formData.append('upload_type', 'file');
             formData.append('file', selectedFile);
             formData.append('display_name', customName);
             formData.append('logo_url', logoUrl);
+            formData.append('redirect_url', redirectUrl);
 
             const xhr = new XMLHttpRequest();
             const progressContainer = document.getElementById('progressContainer');
@@ -399,6 +417,7 @@
             const url = document.getElementById('linkUrl').value.trim();
             const name = document.getElementById('linkName').value.trim();
             const logoUrl = document.getElementById('linkLogoUrl').value.trim();
+            const redirectUrl = document.getElementById('linkRedirectUrl').value.trim();
             if (!url) { showToast('Destination URL is required.', 'error'); return; }
 
             const fd = new FormData();
@@ -406,6 +425,7 @@
             fd.append('url', url);
             fd.append('display_name', name);
             fd.append('logo_url', logoUrl);
+            fd.append('redirect_url', redirectUrl);
 
             fetch('/admin/upload', { method: 'POST', body: fd })
                 .then(r => r.json())
@@ -419,13 +439,12 @@
                 });
         }
 
-        // 100% SYNCHRONIZED RECREATE LINK FUNCTION (Both PC & Phone Updated Instantly)
         function recreateLink(itemId) {
             fetch(`/admin/recreate-link/${itemId}`, { method: 'POST' })
                 .then(r => r.json())
                 .then(res => {
                     if (res.success) {
-                        // 1. Update Desktop Row Data & Elements
+                        // Update Desktop Row Data & Elements
                         const dRow = document.getElementById(`item-row-${itemId}`);
                         if (dRow) {
                             dRow.setAttribute('data-link', res.full_link);
@@ -433,10 +452,15 @@
                         }
                         const dCode = document.getElementById(`code-txt-${itemId}`);
                         const dPass = document.getElementById(`pass-txt-${itemId}`);
+                        const dLimit = document.getElementById(`limit-badge-${itemId}`);
                         if (dCode) dCode.innerText = `/v/${res.link_code}`;
                         if (dPass) dPass.innerText = res.password;
+                        if (dLimit) {
+                            dLimit.className = "badge badge-limit";
+                            dLimit.innerText = `Used: 0/${res.max_limit}`;
+                        }
 
-                        // 2. Update Mobile Card Data & Elements
+                        // Update Mobile Card Data & Elements
                         const mCard = document.getElementById(`mobile-card-${itemId}`);
                         if (mCard) {
                             mCard.setAttribute('data-link', res.full_link);
@@ -444,10 +468,15 @@
                         }
                         const mCode = document.getElementById(`m-code-txt-${itemId}`);
                         const mPass = document.getElementById(`m-pass-txt-${itemId}`);
+                        const mLimit = document.getElementById(`m-limit-badge-${itemId}`);
                         if (mCode) mCode.innerText = `/v/${res.link_code}`;
                         if (mPass) mPass.innerText = res.password;
+                        if (mLimit) {
+                            mLimit.className = "badge badge-limit";
+                            mLimit.innerText = `0/${res.max_limit}`;
+                        }
 
-                        showToast('New link & password created! Press Copy to copy new link.', 'success');
+                        showToast('New link & fresh 3-download limit created! Press Copy to copy.', 'success');
                     } else {
                         showToast(res.message, 'error');
                     }
@@ -489,6 +518,7 @@
             const newUser = document.getElementById('setNewUser').value.trim();
             const newPass = document.getElementById('setNewPass').value.trim();
             const newSecret = document.getElementById('setNewSecret').value.trim();
+            const defRedirect = document.getElementById('setDefaultRedirect').value.trim();
 
             if (!curPass) {
                 showToast('Please enter current password to verify.', 'error');
@@ -502,7 +532,8 @@
                     current_password: curPass,
                     new_username: newUser,
                     new_password: newPass,
-                    new_secret_code: newSecret
+                    new_secret_code: newSecret,
+                    default_redirect_url: defRedirect
                 })
             })
             .then(async r => {
