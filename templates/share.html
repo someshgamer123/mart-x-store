@@ -146,10 +146,11 @@
         
         .item-info { background: #080d1a; border-radius: 12px; padding: 14px; margin-bottom: 18px; font-size: 13px; color: #cbd5e1; border: 1px solid #1e293b; text-align: left; }
         
+        /* Direct, Safe Native Download Button */
         .download-btn {
             display: inline-block;
             width: 100%;
-            padding: 15px;
+            padding: 16px;
             background: linear-gradient(135deg, #10b981, #059669);
             color: #fff;
             font-weight: 700;
@@ -157,10 +158,11 @@
             text-decoration: none;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+            cursor: pointer;
+            transition: 0.2s;
         }
         .download-btn:active { transform: scale(0.98); }
 
-        /* ACCESS DENIED */
         #deniedSection { display: none; }
         .denied-card {
             background: rgba(239, 68, 68, 0.06);
@@ -216,7 +218,7 @@
             <h1 class="app-title">{{ item.name }}</h1>
             <div class="denied-card">
                 <div class="denied-title">Access Denied</div>
-                <div class="denied-desc">The download limit for this access key has expired ({{ max_limit }}/{{ max_limit }} downloads used). Each key is limited to {{ max_limit }} downloads.</div>
+                <div class="denied-desc">The download limit for this access key has expired ({{ max_limit }}/{{ max_limit }} downloads used). Each key is strictly limited to {{ max_limit }} downloads.</div>
             </div>
             <a href="{{ buy_redirect }}" class="btn-new-key" target="_blank">
                 <span>Get a New Access Key</span>
@@ -247,11 +249,11 @@
                 <div id="fileMeta" style="color: #94a3b8; font-size: 12px;"></div>
             </div>
 
-            <!-- Single Download Button (Smooth download without auto-reload) -->
-            <a id="actionDownloadBtn" class="download-btn" href="#">Download File</a>
+            <!-- Single Native Download Button (No target="_blank" so mobile never opens a broken tab) -->
+            <a id="actionDownloadBtn" class="download-btn" href="#" onclick="triggerNativeDownload(this)">Download File</a>
         </div>
 
-        <!-- 4. ACCESS DENIED WHEN LIMIT EXCEEDED -->
+        <!-- 4. ACCESS DENIED WHEN LIMIT REACHED -->
         <div id="deniedSection">
             <h1 class="app-title">{{ item.name }}</h1>
             <div class="denied-card">
@@ -351,6 +353,15 @@
                 err.innerText = e.message;
                 err.style.display = 'block';
             });
+        }
+
+        function triggerNativeDownload(btn) {
+            // Smooth UI feedback without opening a new broken tab
+            const originalText = btn.innerText;
+            btn.innerText = "✓ Starting Download...";
+            setTimeout(() => {
+                btn.innerText = originalText;
+            }, 3000);
         }
 
         function showDeniedScreen(message, redirectUrl) {
