@@ -59,14 +59,10 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.6);
             transition: all 0.3s ease;
         }
-        .locked-logo {
-            filter: grayscale(40%) brightness(80%);
-        }
-        .unlocked-logo {
-            filter: none;
-            border-color: #38bdf8;
-            box-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
-        }
+        .locked-logo { filter: grayscale(40%) brightness(80%); }
+        .unlocked-logo { filter: none; border-color: #38bdf8; box-shadow: 0 0 30px rgba(56, 189, 248, 0.3); }
+        .denied-logo { filter: grayscale(100%) opacity(60%); border-color: #ef4444; }
+
         .lock-badge-icon {
             position: absolute;
             bottom: -6px;
@@ -84,7 +80,6 @@
         }
         .lock-badge-icon svg { width: 16px; height: 16px; fill: #fff; }
 
-        /* Default Icon if no PNG provided */
         .default-icon-circle {
             width: 68px;
             height: 68px;
@@ -132,12 +127,28 @@
         .btn-submit:active { transform: scale(0.98); }
         .error-msg { color: #f87171; font-size: 13px; margin-top: 12px; display: none; font-weight: 600; }
 
+        /* Limit Counter Badge */
+        .limit-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            color: #fbbf24;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11.5px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
         /* Unlocked Section */
         #unlockedSection { display: none; }
         .preview-container { margin: 18px 0; border-radius: 14px; overflow: hidden; background: #000; max-height: 220px; display: flex; align-items: center; justify-content: center; border: 1px solid #1e293b; }
         .preview-container img, .preview-container video { width: 100%; max-height: 220px; object-fit: contain; }
         
-        .item-info { background: #080d1a; border-radius: 12px; padding: 14px; margin-bottom: 20px; font-size: 13px; color: #cbd5e1; border: 1px solid #1e293b; text-align: left; }
+        .item-info { background: #080d1a; border-radius: 12px; padding: 14px; margin-bottom: 18px; font-size: 13px; color: #cbd5e1; border: 1px solid #1e293b; text-align: left; }
+        
         .download-btn {
             display: inline-block;
             width: 100%;
@@ -151,41 +162,91 @@
             box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
         }
         .download-btn:active { transform: scale(0.98); }
+
+        /* ACCESS DENIED STATE */
+        #deniedSection { display: none; }
+        .denied-card {
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .denied-title { color: #f87171; font-size: 19px; font-weight: 800; margin-bottom: 8px; }
+        .denied-desc { font-size: 13px; color: #cbd5e1; line-height: 1.5; }
+        
+        .btn-new-key {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: #fff;
+            font-weight: 800;
+            font-size: 15.5px;
+            text-decoration: none;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(217, 119, 6, 0.35);
+            transition: 0.2s;
+        }
+        .btn-new-key:active { transform: scale(0.98); }
     </style>
 </head>
 <body>
     <div class="portal-card">
         <div class="brand-badge">{{ site_name }}</div>
 
-        <!-- Dynamic Logo with Lock -->
+        <!-- Dynamic Logo Container -->
         <div class="logo-container" id="logoBox">
             {% if item.logo_url %}
-            <img src="{{ item.logo_url }}" id="displayLogo" class="app-logo-img locked-logo" alt="Logo">
-            <div class="lock-badge-icon" id="lockStatusIcon">
+            <img src="{{ item.logo_url }}" id="displayLogo" class="app-logo-img {{ 'denied-logo' if is_expired else 'locked-logo' }}" alt="Logo">
+            <div class="lock-badge-icon" id="lockStatusIcon" style="{{ 'background:#dc2626;' if is_expired else '' }}">
+                {% if is_expired %}
+                <!-- Denied Icon -->
+                <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                {% else %}
                 <!-- Locked SVG -->
                 <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                {% endif %}
             </div>
             {% else %}
-            <div class="default-icon-circle" id="defaultIcon">
-                <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            <div class="default-icon-circle" id="defaultIcon" style="{{ 'background:rgba(239,68,68,0.15); border-color:#ef4444;' if is_expired else '' }}">
+                <svg viewBox="0 0 24 24" style="{{ 'fill:#ef4444;' if is_expired else '' }}"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
             </div>
             {% endif %}
         </div>
 
-        <!-- Locked Screen -->
+        {% if is_expired %}
+        <!-- 1. ALREADY EXPIRED STATE (Directly Shown if 3/3 Used) -->
+        <div id="initialDeniedSection">
+            <h1 class="app-title">{{ item.name }}</h1>
+            <div class="denied-card">
+                <div class="denied-title">Access Denied</div>
+                <div class="denied-desc">The download limit for this access key has expired ({{ max_limit }}/{{ max_limit }} downloads used). Each key can only be downloaded {{ max_limit }} times to prevent key sharing.</div>
+            </div>
+            <a href="{{ buy_redirect }}" class="btn-new-key" target="_blank">
+                <span>Get a New Access Key</span>
+                <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; fill: #fff;"><path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21.14 12l-8.29-7.85-1.42 1.42 5.43 5.43H5v2z"/></svg>
+            </a>
+        </div>
+        {% else %}
+
+        <!-- 2. NORMAL PASSWORD PROMPT (If downloads remaining < 3) -->
         <div id="lockedSection">
             <h1 class="app-title">{{ item.name }}</h1>
-            <p class="subtitle">Enter the password key to unlock and download.</p>
+            <p class="subtitle">Enter the password key to unlock and download this asset.</p>
             
             <input type="password" id="passInput" class="pw-input" placeholder="Enter password (e.g. aoudfnegcu)" autocomplete="off">
             <button class="btn-submit" onclick="unlockItem()">Unlock & Access</button>
             <div class="error-msg" id="errorMsg"></div>
         </div>
 
-        <!-- Unlocked Screen -->
+        <!-- 3. UNLOCKED STATE -->
         <div id="unlockedSection">
             <h1 class="app-title">{{ item.name }}</h1>
-            <p class="subtitle" style="color: #34d399; font-weight: 600;">✓ Resource Unlocked & Verified</p>
+            <div class="limit-pill" id="remainingPill">Downloads Remaining: Loading...</div>
             
             <div id="mediaPreview" class="preview-container" style="display: none;"></div>
 
@@ -195,8 +256,22 @@
             </div>
 
             <!-- Single Download Button -->
-            <a id="actionDownloadBtn" class="download-btn" href="#" target="_blank">Download File</a>
+            <a id="actionDownloadBtn" class="download-btn" href="#" target="_blank" onclick="handleDownloadClick()">Download File</a>
         </div>
+
+        <!-- 4. DYNAMIC ACCESS DENIED (If limit hits during unlock) -->
+        <div id="deniedSection">
+            <h1 class="app-title">{{ item.name }}</h1>
+            <div class="denied-card">
+                <div class="denied-title">Access Denied</div>
+                <div class="denied-desc" id="deniedReason">Maximum download limit reached ({{ max_limit }}/{{ max_limit }} used). Please get a fresh access key to download again.</div>
+            </div>
+            <a id="deniedRedirectBtn" href="{{ buy_redirect }}" class="btn-new-key" target="_blank">
+                <span>Get a New Access Key</span>
+                <svg viewBox="0 0 24 24" style="width: 18px; height: 18px; fill: #fff;"><path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21.14 12l-8.29-7.85-1.42 1.42 5.43 5.43H5v2z"/></svg>
+            </a>
+        </div>
+        {% endif %}
     </div>
 
     <script>
@@ -228,11 +303,20 @@
             })
             .then(async res => {
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.message || 'Access Denied');
+                if (!res.ok) {
+                    // IF LIMIT EXCEEDED
+                    if (data.limit_exceeded) {
+                        showDeniedScreen(data.message, data.buy_redirect);
+                        return;
+                    }
+                    throw new Error(data.message || 'Access Denied');
+                }
                 return data;
             })
             .then(data => {
-                // Animate Logo Unlock State
+                if (!data) return;
+
+                // Animate Unlocked Logo
                 const logoImg = document.getElementById('displayLogo');
                 const lockBadge = document.getElementById('lockStatusIcon');
                 if (logoImg) {
@@ -241,12 +325,13 @@
                 }
                 if (lockBadge) {
                     lockBadge.style.background = "#10b981";
-                    // Unlocked checkmark icon
                     lockBadge.innerHTML = `<svg viewBox="0 0 24 24" style="width: 18px; height: 18px; fill: #fff;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
                 }
 
                 document.getElementById('lockedSection').style.display = 'none';
                 document.getElementById('unlockedSection').style.display = 'block';
+
+                document.getElementById('remainingPill').innerText = `Downloads Remaining: ${data.remaining_downloads} of ${data.max_limit}`;
 
                 document.getElementById('fileName').innerText = data.name;
                 if (data.item_type === 'file') {
@@ -276,6 +361,37 @@
                 err.innerText = e.message;
                 err.style.display = 'block';
             });
+        }
+
+        function showDeniedScreen(message, redirectUrl) {
+            document.getElementById('lockedSection').style.display = 'none';
+            if (document.getElementById('unlockedSection')) document.getElementById('unlockedSection').style.display = 'none';
+            
+            const deniedSection = document.getElementById('deniedSection');
+            if (deniedSection) {
+                deniedSection.style.display = 'block';
+                if (message) document.getElementById('deniedReason').innerText = message;
+                if (redirectUrl) document.getElementById('deniedRedirectBtn').href = redirectUrl;
+            }
+
+            // Turn logo red
+            const logoImg = document.getElementById('displayLogo');
+            const lockBadge = document.getElementById('lockStatusIcon');
+            if (logoImg) {
+                logoImg.classList.remove('locked-logo', 'unlocked-logo');
+                logoImg.classList.add('denied-logo');
+            }
+            if (lockBadge) {
+                lockBadge.style.background = "#dc2626";
+                lockBadge.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>`;
+            }
+        }
+
+        function handleDownloadClick() {
+            // Give 1.5s after click, then reload to update download count and lock if 3 reached
+            setTimeout(() => {
+                location.reload();
+            }, 1800);
         }
     </script>
 </body>
